@@ -2,12 +2,13 @@ import torch.cuda
 import yaml
 import time
 import datetime
+import h5py
 import numpy as np
 import torch.nn as nn
 
 from torch.utils.data import DataLoader, random_split
 from sksurv.metrics import concordance_index_censored
-from utils import *
+from models.utils import get_omics_sizes_from_dataset
 from models.loss import CrossEntropySurvivalLoss
 from mcat import MultimodalCoAttentionTransformer
 from dataset.dataset import MultimodalDataset

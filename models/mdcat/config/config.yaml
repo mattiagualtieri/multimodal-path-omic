@@ -1,0 +1,12 @@
+device: cuda
+dataset:
+  dataset_file: ../../input/dataset.hdf5
+training:
+  train_size: 0.8
+  loss: ces
+  epochs: 20
+  lr: 0.0002
+  weight_decay: 0.00001
+  grad_acc_step: 32
+  seq_reducer: att_net_gated # pooling, conv
+  reduced_size: 10

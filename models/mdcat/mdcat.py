@@ -4,9 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-# https://github.com/mahmoodlab/MCAT/blob/master/Model%20Computation%20%2B%20Complexity%20Overview.ipynb
-
-
 class AttentionNetGated(nn.Module):
     def __init__(self, input_dim=256, hidden_dim=256, dropout=True, n_classes=1):
         r"""
@@ -41,9 +38,45 @@ class AttentionNetGated(nn.Module):
         return A, x
 
 
-class MultimodalCoAttentionTransformer(nn.Module):
-    def __init__(self, omic_sizes: [], n_classes: int = 4, dropout: float = 0.25):
-        super(MultimodalCoAttentionTransformer, self).__init__()
+class PoolingSequenceReducer(nn.Module):
+    def __init__(self, output_size=10):
+        super(PoolingSequenceReducer, self).__init__()
+        self.pooling = nn.AdaptiveMaxPool1d(output_size=output_size)
+
+    def forward(self, x):
+        x = x.permute(1, 0)
+        return self.pooling(x).permute(1, 0)
+
+
+class ConvolutionalSequenceReducer(nn.Module):
+    def __init__(self, output_size=10):
+        super(ConvolutionalSequenceReducer, self).__init__()
+        self.output_size = output_size
+        self.conv1 = nn.Conv1d(1, 64, kernel_size=3, padding=1)
+        self.pool1 = nn.MaxPool1d(kernel_size=2)
+        self.conv2 = nn.Conv1d(64, 128, kernel_size=3, padding=1)
+        self.pool2 = nn.MaxPool1d(kernel_size=2)
+
+        self.fc_input_size = 128
+        self.fc1 = nn.Linear(self.fc_input_size, 1024)
+        self.fc2 = nn.Linear(1024, self.output_size * 1024)
+
+    def forward(self, x):
+        x = x.unsqueeze(1)
+        x = F.relu(self.conv1(x))
+        x = self.pool1(x)
+        x = F.relu(self.conv2(x))
+        x = self.pool2(x)
+        x = torch.mean(x, dim=(2, 0))
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        x = x.view(self.output_size, 1024)  # Reshape to (M, 1024)
+        return x
+
+
+class MultimodalDoubleCoAttentionTransformer(nn.Module):
+    def __init__(self, omic_sizes: [], n_classes: int = 4, dropout: float = 0.25, seq_reducer='pooling', reduced_size=10):
+        super(MultimodalDoubleCoAttentionTransformer, self).__init__()
         self.n_classes = n_classes
         self.d_k = 256
 
@@ -70,6 +103,17 @@ class MultimodalCoAttentionTransformer(nn.Module):
             )
             omic_encoders.append(fc)
         self.G = nn.ModuleList(omic_encoders)
+
+        # R
+        self.seq_reducer = seq_reducer
+        if self.seq_reducer == 'pooling':
+            self.R = PoolingSequenceReducer(output_size=reduced_size)
+        elif self.seq_reducer == 'conv':
+            self.R = ConvolutionalSequenceReducer(output_size=reduced_size)
+        elif self.seq_reducer == 'attn_net_gated':
+            self.R = AttentionNetGated(input_dim=1024, n_classes=reduced_size, dropout=False)
+        else:
+            raise NotImplementedError(f'Sequence reducer {self.seq_reducer} not implemented')
 
         # Genomic-Guided Co-Attention
         self.co_attention = nn.MultiheadAttention(embed_dim=self.d_k, num_heads=1)
@@ -109,6 +153,17 @@ class MultimodalCoAttentionTransformer(nn.Module):
         G_omic = [self.G[index].forward(omic.type(torch.float32)) for index, omic in enumerate(omics)]
         # G_bag: (Nxd_k)
         G_bag = torch.stack(G_omic).squeeze(1)
+
+        if self.seq_reducer == 'pooling':
+            r = self.R(wsi)
+        elif self.seq_reducer == 'conv':
+            r = self.R(wsi)
+        elif self.seq_reducer == 'attn_net_gated':
+            A_wsi, wsi = self.R(wsi)
+            reduced = torch.transpose(A_wsi, 1, 0)
+            r = torch.mm(F.softmax(reduced, dim=1), wsi)
+        else:
+            raise NotImplementedError(f'Sequence reducer {self.seq_reducer} not implemented')
 
         # Co-Attention results
         # H_coattn: Genomic-Guided WSI-level Embeddings (Nxd_k)
@@ -162,13 +217,13 @@ class MultimodalCoAttentionTransformer(nn.Module):
         return hazards, survs, Y, attention_scores
 
 
-def test_mcat():
-    print('Testing MultimodalCoAttentionTransformer...')
+def test_mdcat():
+    print('Testing MultimodalDoubleCoAttentionTransformer...')
 
     wsi = torch.randn((3000, 1024))
     omics = [torch.randn(dim) for dim in [100, 200, 300, 400, 500, 600]]
     omic_sizes = [omic.size()[0] for omic in omics]
-    model = MultimodalCoAttentionTransformer(omic_sizes=omic_sizes)
+    model = MultimodalDoubleCoAttentionTransformer(omic_sizes=omic_sizes, seq_reducer='attn_net_gated')
     hazards, S, Y_hat, attention_scores = model(wsi, omics)
     assert hazards.shape[0] == S.shape[0] == Y_hat.shape[0] == 1
     assert hazards.shape[1] == S.shape[1] == Y_hat.shape[1] == 4
@@ -178,3 +233,19 @@ def test_mcat():
     assert attention_scores['path'].shape[1] == attention_scores['omic'].shape[1] == len(omic_sizes)
 
     print('Forward successful')
+
+
+def test_conv_reducer():
+    print('Testing ConvolutionalSequenceReducer...')
+
+    reducer = ConvolutionalSequenceReducer(output_size=10)
+    x = torch.randn((2000, 1024))
+    out = reducer(x)
+    assert out.shape[0] == 10
+    assert out.shape[1] == 1024
+    x = torch.randn((3000, 1024))
+    out = reducer(x)
+    assert out.shape[0] == 10
+    assert out.shape[1] == 1024
+
+    print('Test successful')

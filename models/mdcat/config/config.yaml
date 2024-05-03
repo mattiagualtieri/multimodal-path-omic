@@ -8,5 +8,5 @@ training:
   lr: 0.0002
   weight_decay: 0.00001
   grad_acc_step: 32
-  seq_reducer: att_net_gated # pooling, conv
+  seq_reducer: attention # pooling, conv, perceiver
   reduced_size: 10

@@ -52,7 +52,7 @@ class ThreeStreamMultimodalCoAttentionTransformer(nn.Module):
         elif self.seq_reducer == 'perceiver':
             self.reducer = PerceiverSequenceReducer()
         else:
-            raise NotImplementedError(f'Sequence reducer {self.seq_reducer} not implemented')
+            self.reducer = None
 
         # Genomic-Guided Co-Attention
         self.co_attention = nn.MultiheadAttention(embed_dim=self.d_k, num_heads=1)
@@ -111,6 +111,8 @@ class ThreeStreamMultimodalCoAttentionTransformer(nn.Module):
             queries = torch.zeros(self.reduced_size, self.d_k)
             H_bag_reduced = self.reducer(H_bag, queries=queries)
             H_bag_reduced = H_bag_reduced.squeeze(0)
+        elif self.reducer is None:
+            H_bag_reduced = H_bag
         else:
             H_bag_reduced = self.reducer(H_bag)
 
@@ -182,6 +184,24 @@ def test_mdcat():
     omics = [torch.randn(dim) for dim in [100, 200, 300, 400, 500, 600]]
     omic_sizes = [omic.size()[0] for omic in omics]
     model = ThreeStreamMultimodalCoAttentionTransformer(omic_sizes=omic_sizes, seq_reducer='perceiver')
+    hazards, S, Y_hat, attention_scores = model(wsi, omics)
+    assert hazards.shape[0] == S.shape[0] == Y_hat.shape[0] == 1
+    assert hazards.shape[1] == S.shape[1] == Y_hat.shape[1] == 4
+    # assert attention_scores['coattn'].shape[0] == len(omic_sizes)
+    # assert attention_scores['coattn'].shape[1] == 3000
+    # assert attention_scores['path'].shape[0] == attention_scores['omic'].shape[0] == 1
+    # assert attention_scores['path'].shape[1] == attention_scores['omic'].shape[1] == len(omic_sizes)
+
+    print('Forward successful')
+
+
+def test_mdcat_no_reduce():
+    print('Testing ThreeStreamMultimodalCoAttentionTransformer...')
+
+    wsi = torch.randn((3000, 1024))
+    omics = [torch.randn(dim) for dim in [100, 200, 300, 400, 500, 600]]
+    omic_sizes = [omic.size()[0] for omic in omics]
+    model = ThreeStreamMultimodalCoAttentionTransformer(omic_sizes=omic_sizes, seq_reducer='none')
     hazards, S, Y_hat, attention_scores = model(wsi, omics)
     assert hazards.shape[0] == S.shape[0] == Y_hat.shape[0] == 1
     assert hazards.shape[1] == S.shape[1] == Y_hat.shape[1] == 4

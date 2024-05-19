@@ -95,7 +95,7 @@ class MultimodalDoubleCoAttentionTransformer(nn.Module):
         # Classifier
         self.classifier = nn.Linear(256, n_classes)
 
-    def forward(self, wsi, omics):
+    def forward(self, wsi, omics, device='cpu'):
         # WSI Fully connected layer
         # H_bag: (Mxd_k)
         H_bag = self.H(wsi).squeeze(0)
@@ -108,7 +108,7 @@ class MultimodalDoubleCoAttentionTransformer(nn.Module):
         # This is the same as H_bag, but with lower dimensionality
         # H_bag_reduced (Rxd_k)
         if isinstance(self.reducer, PerceiverSequenceReducer):
-            queries = torch.zeros(self.reduced_size, self.d_k)
+            queries = torch.zeros(self.reduced_size, self.d_k).to(device)
             H_bag_reduced = self.reducer(H_bag, queries=queries)
             H_bag_reduced = H_bag_reduced.squeeze(0)
         else:

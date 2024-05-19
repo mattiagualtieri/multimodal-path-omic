@@ -30,7 +30,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
         censorship = censorship.type(torch.FloatTensor).to(device)
         patches_embeddings = patches_embeddings.to(device)
         omics_data = [omic_data.to(device) for omic_data in omics_data]
-        hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
+        hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data, device=config['device'])
 
         if config['training']['loss'] == 'ce':
             loss = loss_function(Y, survival_class.long())
@@ -81,7 +81,7 @@ def validate(epoch, config, device, val_loader, model, loss_function):
         patches_embeddings = patches_embeddings.to(device)
         omics_data = [omic_data.to(device) for omic_data in omics_data]
         with torch.no_grad():
-            hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
+            hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data, device=config['device'])
 
         if config['training']['loss'] == 'ce':
             loss = loss_function(Y, survival_class.long())

@@ -61,7 +61,9 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
     train_loss /= len(train_loader)
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
     print('Epoch: {}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch, train_loss, c_index))
-    wandb.log({"train_loss": train_loss, "train_c_index": c_index})
+    wandb_enabled = config['wandb_enabled']
+    if wandb_enabled:
+        wandb.log({"train_loss": train_loss, "train_c_index": c_index})
 
 
 def validate(epoch, config, device, val_loader, model, loss_function):
@@ -100,18 +102,21 @@ def validate(epoch, config, device, val_loader, model, loss_function):
     val_loss /= len(val_loader)
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
     print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch, val_loss, c_index))
-    wandb.log({"val_loss": val_loss, "val_c_index": c_index})
+    wandb_enabled = config['wandb_enabled']
+    if wandb_enabled:
+        wandb.log({"val_loss": val_loss, "val_c_index": c_index})
 
 
 def wandb_init(config):
     wandb.init(
-        project="MDCAT",
+        project='MDCAT',
         config={
-            "learning_rate": config['training']['lr'],
-            "weight_decay": config['training']['weight_decay'],
-            "gradient_acceleration_step": config['training']['grad_acc_step'],
-            "epochs": config['training']['epochs'],
-            "architecture": config['model']['name'],
+            'learning_rate': config['training']['lr'],
+            'weight_decay': config['training']['weight_decay'],
+            'gradient_acceleration_step': config['training']['grad_acc_step'],
+            'seq_reducer': config['training']['seq_reducer'],
+            'epochs': config['training']['epochs'],
+            'architecture': config['model']['name'],
         }
     )
 
@@ -145,7 +150,9 @@ def main():
         val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
         # Model
         omics_sizes = get_omics_sizes_from_dataset(dataset_file)
-        model = MultimodalDoubleCoAttentionTransformer(omic_sizes=omics_sizes)
+        seq_reducer = config['training']['seq_reducer']
+        print(f'Using sequence reducer: {seq_reducer}')
+        model = MultimodalDoubleCoAttentionTransformer(omic_sizes=omics_sizes, seq_reducer=seq_reducer)
         model = nn.DataParallel(model)
         model.to(device=device)
         # Loss function
@@ -163,8 +170,12 @@ def main():
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
                                      lr=lr, weight_decay=weight_decay)
 
+        wandb_enabled = config['wandb_enabled']
+        if wandb_enabled:
+            print('Setting up wandb for report')
+            wandb_init(config)
+
         print('Training started...')
-        wandb_init(config)
         model.train()
         epochs = config['training']['epochs']
         for epoch in range(epochs):
@@ -175,7 +186,8 @@ def main():
             print('Time elapsed for epoch {}: {:.0f}s'.format(epoch, end_time - start_time))
 
         validate('final validation', config, device, val_loader, model, loss_function)
-        wandb.finish()
+        if wandb_enabled:
+            wandb.finish()
 
 
 if __name__ == '__main__':

@@ -9,10 +9,10 @@ from models.reducers import (PoolingSequenceReducer,
                              PerceiverSequenceReducer)
 
 
-class MultimodalDoubleCoAttentionTransformer(nn.Module):
-    def __init__(self, omic_sizes: [], n_classes: int = 4, dropout: float = 0.25, seq_reducer='pooling',
+class ThreeStreamMultimodalCoAttentionTransformer(nn.Module):
+    def __init__(self, omic_sizes: [], n_classes: int = 4, dropout: float = 0.25, seq_reducer='perceiver',
                  reduced_size=10):
-        super(MultimodalDoubleCoAttentionTransformer, self).__init__()
+        super(ThreeStreamMultimodalCoAttentionTransformer, self).__init__()
         self.n_classes = n_classes
         self.d_k = 256
         self.reduced_size = reduced_size
@@ -55,21 +55,18 @@ class MultimodalDoubleCoAttentionTransformer(nn.Module):
             raise NotImplementedError(f'Sequence reducer {self.seq_reducer} not implemented')
 
         # Genomic-Guided Co-Attention
-        self.genomic_g_co_attention = nn.MultiheadAttention(embed_dim=self.d_k, num_heads=1)
+        self.co_attention = nn.MultiheadAttention(embed_dim=self.d_k, num_heads=1)
 
-        # Histo-Guided Co-Attention
-        self.histo_g_co_attention = nn.MultiheadAttention(embed_dim=self.d_k, num_heads=1)
-
-        # Transformer working on Genomic-Guided WSI Embeddings (T_GG)
+        # Path Transformer (T_GG)
         genomic_g_encoder_layer = nn.TransformerEncoderLayer(d_model=256, nhead=8, dim_feedforward=512, dropout=dropout,
                                                              activation='relu')
         self.genomic_g_transformer = nn.TransformerEncoder(genomic_g_encoder_layer, num_layers=2)
 
-        # Genomic-Guided WSI Global Attention Pooling (rho_GG)
+        # WSI Global Attention Pooling (rho_GG)
         self.genomic_g_attention_head = AttentionNetGated(n_classes=1)
         self.genomic_g_rho = nn.Sequential(*[nn.Linear(256, 256), nn.ReLU(), nn.Dropout(dropout)])
 
-        # Genomic Transformer (T_G)
+        # Omic Transformer (T_G)
         genomic_encoder_layer = nn.TransformerEncoderLayer(d_model=256, nhead=8, dim_feedforward=512, dropout=dropout,
                                                            activation='relu')
         self.genomic_transformer = nn.TransformerEncoder(genomic_encoder_layer, num_layers=2)
@@ -78,18 +75,21 @@ class MultimodalDoubleCoAttentionTransformer(nn.Module):
         self.genomic_attention_head = AttentionNetGated(n_classes=1)
         self.genomic_rho = nn.Sequential(*[nn.Linear(256, 256), nn.ReLU(), nn.Dropout(dropout)])
 
-        # Transformer working on Histo-Guided Omics Embeddings (T_HG)
-        histo_g_encoder_layer = nn.TransformerEncoderLayer(d_model=256, nhead=8, dim_feedforward=512, dropout=dropout,
-                                                           activation='relu')
-        self.histo_g_transformer = nn.TransformerEncoder(histo_g_encoder_layer, num_layers=2)
+        # Histo Transformer (T_H)
+        histo_encoder_layer = nn.TransformerEncoderLayer(d_model=256, nhead=8, dim_feedforward=512, dropout=dropout,
+                                                         activation='relu')
+        self.histo_transformer = nn.TransformerEncoder(histo_encoder_layer, num_layers=2)
 
-        # Histo-Guided Genomics Global Attention Pooling (rho_HG)
-        self.histo_g_attention_head = AttentionNetGated(n_classes=1)
-        self.histo_g_rho = nn.Sequential(*[nn.Linear(256, 256), nn.ReLU(), nn.Dropout(dropout)])
+        # Histo Global Attention Pooling (rho_H)
+        self.histo_attention_head = AttentionNetGated(n_classes=1)
+        self.histo_rho = nn.Sequential(*[nn.Linear(256, 256), nn.ReLU(), nn.Dropout(dropout)])
 
         # Fusion Layer
         self.fusion_layer = nn.Sequential(*[
-            nn.Linear(256 * 3, 256), nn.ReLU(), nn.Linear(256, 256), nn.ReLU()
+            nn.Linear(256 * 3, 256),
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU()
         ])
 
         # Classifier
@@ -118,17 +118,13 @@ class MultimodalDoubleCoAttentionTransformer(nn.Module):
 
         # genomic_g_coattn: Genomic-Guided WSI-level Embeddings (Nxd_k)
         # A_genomic_g_coattn: Co-Attention Matrix (NxM)
-        genomic_g_coattn, A_genomic_g_coattn = self.genomic_g_co_attention(query=G_bag, key=H_bag, value=H_bag)
-
-        # histo_g_coattn: Histo-Guided Omic-level Embeddings (Rxd_k)
-        # A_histo_g_coattn: Co-Attention Matrix (RxN)
-        histo_g_coattn, A_histo_g_coattn = self.histo_g_co_attention(query=H_bag_reduced, key=G_bag, value=G_bag)
+        genomic_g_coattn, A_genomic_g_coattn = self.co_attention(query=G_bag, key=H_bag, value=H_bag)
 
         # Set-Based MIL Transformers
         # Attention is permutation-equivariant, so dimensions are the same (Nxd_k) and (Rxd_k)
         genomic_g_trans = self.genomic_g_transformer(genomic_g_coattn)
         genomic_trans = self.genomic_transformer(G_bag)
-        histo_g_trans = self.histo_g_transformer(histo_g_coattn)
+        histo_trans = self.histo_transformer(H_bag_reduced)
 
         # Global Attention Pooling
         A_genomic_g, h_genomic_g = self.genomic_g_attention_head(genomic_g_trans.squeeze(1))
@@ -143,14 +139,14 @@ class MultimodalDoubleCoAttentionTransformer(nn.Module):
         # h_genomic: final Genomics embedding (dk)
         h_genomic = self.genomic_rho(h_genomic).squeeze()
 
-        A_histo_g, h_histo_g = self.histo_g_attention_head(histo_g_trans.squeeze(1))
-        A_histo_g = torch.transpose(A_histo_g, 1, 0)
-        A_histo_g = torch.mm(F.softmax(A_histo_g, dim=1), h_histo_g)
-        # h_histo_g: final Histo-Guided embedding (dk)
-        h_histo_g = self.histo_g_rho(A_histo_g).squeeze()
+        A_histo, h_histo = self.histo_attention_head(histo_trans.squeeze(1))
+        A_histo = torch.transpose(A_histo, 1, 0)
+        h_histo = torch.mm(F.softmax(A_histo, dim=1), h_histo)
+        # h_histo: final Patches embedding (dk)
+        h_histo = self.histo_rho(h_histo).squeeze()
 
         # Fusion Layer
-        concat = torch.cat([h_genomic_g, h_genomic, h_histo_g], dim=0)
+        concat = torch.cat([h_genomic_g, h_genomic, h_histo], dim=0)
         # h: final representation (dk)
         h = self.fusion_layer(concat)
 
@@ -180,30 +176,12 @@ class MultimodalDoubleCoAttentionTransformer(nn.Module):
 
 
 def test_mdcat():
-    print('Testing MultimodalDoubleCoAttentionTransformer...')
+    print('Testing ThreeStreamMultimodalCoAttentionTransformer...')
 
     wsi = torch.randn((3000, 1024))
     omics = [torch.randn(dim) for dim in [100, 200, 300, 400, 500, 600]]
     omic_sizes = [omic.size()[0] for omic in omics]
-    model = MultimodalDoubleCoAttentionTransformer(omic_sizes=omic_sizes, seq_reducer='attention')
-    hazards, S, Y_hat, attention_scores = model(wsi, omics)
-    assert hazards.shape[0] == S.shape[0] == Y_hat.shape[0] == 1
-    assert hazards.shape[1] == S.shape[1] == Y_hat.shape[1] == 4
-    # assert attention_scores['coattn'].shape[0] == len(omic_sizes)
-    # assert attention_scores['coattn'].shape[1] == 3000
-    # assert attention_scores['path'].shape[0] == attention_scores['omic'].shape[0] == 1
-    # assert attention_scores['path'].shape[1] == attention_scores['omic'].shape[1] == len(omic_sizes)
-
-    print('Forward successful')
-
-
-def test_mdcat_perceiver():
-    print('Testing MultimodalDoubleCoAttentionTransformer...')
-
-    wsi = torch.randn((3000, 1024))
-    omics = [torch.randn(dim) for dim in [100, 200, 300, 400, 500, 600]]
-    omic_sizes = [omic.size()[0] for omic in omics]
-    model = MultimodalDoubleCoAttentionTransformer(omic_sizes=omic_sizes, seq_reducer='perceiver')
+    model = ThreeStreamMultimodalCoAttentionTransformer(omic_sizes=omic_sizes, seq_reducer='perceiver')
     hazards, S, Y_hat, attention_scores = model(wsi, omics)
     assert hazards.shape[0] == S.shape[0] == Y_hat.shape[0] == 1
     assert hazards.shape[1] == S.shape[1] == Y_hat.shape[1] == 4

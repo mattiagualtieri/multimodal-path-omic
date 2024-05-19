@@ -1,4 +1,5 @@
 device: cuda
+wandb_enabled: False
 dataset:
   dataset_file: ../../input/dataset.hdf5
 model:

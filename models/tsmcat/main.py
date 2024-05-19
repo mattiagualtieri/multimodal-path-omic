@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, random_split
 from sksurv.metrics import concordance_index_censored
 from models.utils import get_omics_sizes_from_dataset
 from models.loss import CrossEntropySurvivalLoss
-from mcat import MultimodalCoAttentionTransformer
+from tsmcat import ThreeStreamMultimodalCoAttentionTransformer
 from dataset.dataset import MultimodalDataset
 
 
@@ -109,13 +109,14 @@ def validate(epoch, config, device, val_loader, model, loss_function):
 
 def wandb_init(config):
     wandb.init(
-        project="MCAT",
+        project='TSMCAT',
         config={
-            "learning_rate": config['training']['lr'],
-            "weight_decay": config['training']['weight_decay'],
-            "gradient_acceleration_step": config['training']['grad_acc_step'],
-            "epochs": config['training']['epochs'],
-            "architecture": config['model']['name'],
+            'learning_rate': config['training']['lr'],
+            'weight_decay': config['training']['weight_decay'],
+            'gradient_acceleration_step': config['training']['grad_acc_step'],
+            'seq_reducer': config['training']['seq_reducer'],
+            'epochs': config['training']['epochs'],
+            'architecture': config['model']['name'],
         }
     )
 
@@ -149,7 +150,9 @@ def main():
         val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
         # Model
         omics_sizes = get_omics_sizes_from_dataset(dataset_file)
-        model = MultimodalCoAttentionTransformer(omic_sizes=omics_sizes)
+        seq_reducer = config['training']['seq_reducer']
+        print(f'Using sequence reducer: {seq_reducer}')
+        model = ThreeStreamMultimodalCoAttentionTransformer(omic_sizes=omics_sizes)
         model = nn.DataParallel(model)
         model.to(device=device)
         # Loss function
@@ -188,6 +191,6 @@ def main():
 
 
 if __name__ == '__main__':
-    print(f'[{datetime.datetime.now().strftime("%d/%m/%Y - %H:%M")}] MCAT main started')
+    print(f'[{datetime.datetime.now().strftime("%d/%m/%Y - %H:%M")}] TSMCAT main started')
     main()
-    print(f'[{datetime.datetime.now().strftime("%d/%m/%Y - %H:%M")}] MCAT main finished')
+    print(f'[{datetime.datetime.now().strftime("%d/%m/%Y - %H:%M")}] TSMCAT main finished')

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from models.blocks import AttentionNetGated
-from models.mdcat.perceiver import Perceiver
+from models.perceiver import Perceiver
 
 
 class PoolingSequenceReducer(nn.Module):

@@ -152,7 +152,7 @@ def main():
         omics_sizes = get_omics_sizes_from_dataset(dataset_file)
         seq_reducer = config['training']['seq_reducer']
         print(f'Using sequence reducer: {seq_reducer}')
-        model = ThreeStreamMultimodalCoAttentionTransformer(omic_sizes=omics_sizes)
+        model = ThreeStreamMultimodalCoAttentionTransformer(omic_sizes=omics_sizes, seq_reducer=seq_reducer)
         model = nn.DataParallel(model)
         model.to(device=device)
         # Loss function

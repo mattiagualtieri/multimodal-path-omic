@@ -1,11 +1,13 @@
 device: cuda
-wandb_enabled: True
+wandb_enabled: False
 dataset:
-  dataset_file: ../../input/dataset.hdf5
+  file: ../../input/brca_small.csv
+  patches_dir: ../../input/patches/
+  signatures: ../../input/signatures.csv
 model:
   name: MCAT
 training:
-  train_size: 0.8
+  train_size: 0.5
   loss: ces
   epochs: 20
   lr: 0.0002

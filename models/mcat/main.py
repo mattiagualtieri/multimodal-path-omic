@@ -2,17 +2,15 @@ import torch.cuda
 import yaml
 import time
 import datetime
-import h5py
 import wandb
 import numpy as np
 import torch.nn as nn
 
 from torch.utils.data import DataLoader, random_split
 from sksurv.metrics import concordance_index_censored
-from models.utils import get_omics_sizes_from_dataset
 from models.loss import CrossEntropySurvivalLoss
 from mcat import MultimodalCoAttentionTransformer
-from dataset.dataset import MultimodalDataset
+from dataset.dataset import MultimodalDatasetV2
 
 
 def train(epoch, config, device, train_loader, model, loss_function, optimizer):
@@ -135,56 +133,54 @@ def main():
             print(f'Using device: {torch.cuda.get_device_name(device_index)}')
     print(f'Running on {device.upper()}')
 
-    dataset_file = config['dataset']['dataset_file']
+    # Dataset
+    file_csv = config['dataset']['file']
+    dataset = MultimodalDatasetV2(file_csv, config, use_signatures=True)
+    train_size = config['training']['train_size']
+    print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')
+    train_size = int(train_size * len(dataset))
+    val_size = len(dataset) - train_size
+    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
+    # Model
+    omics_sizes = dataset.signature_sizes
+    model = MultimodalCoAttentionTransformer(omic_sizes=omics_sizes)
+    model = nn.DataParallel(model)
+    model.to(device=device)
+    # Loss function
+    if config['training']['loss'] == 'ce':
+        print('Using CrossEntropyLoss during training')
+        loss_function = nn.CrossEntropyLoss()
+    elif config['training']['loss'] == 'ces':
+        print('Using CrossEntropySurvivalLoss during training')
+        loss_function = CrossEntropySurvivalLoss()
+    else:
+        raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
+    # Optimizer
+    lr = config['training']['lr']
+    weight_decay = config['training']['weight_decay']
+    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
+                                 lr=lr, weight_decay=weight_decay)
 
-    with (h5py.File(dataset_file, 'r') as hdf5_file):
-        # Dataset
-        dataset = MultimodalDataset(hdf5_file)
-        train_size = config['training']['train_size']
-        print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')
-        train_size = int(train_size * len(dataset))
-        val_size = len(dataset) - train_size
-        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-        train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
-        # Model
-        omics_sizes = get_omics_sizes_from_dataset(dataset_file)
-        model = MultimodalCoAttentionTransformer(omic_sizes=omics_sizes)
-        model = nn.DataParallel(model)
-        model.to(device=device)
-        # Loss function
-        if config['training']['loss'] == 'ce':
-            print('Using CrossEntropyLoss during training')
-            loss_function = nn.CrossEntropyLoss()
-        elif config['training']['loss'] == 'ces':
-            print('Using CrossEntropySurvivalLoss during training')
-            loss_function = CrossEntropySurvivalLoss()
-        else:
-            raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
-        # Optimizer
-        lr = config['training']['lr']
-        weight_decay = config['training']['weight_decay']
-        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
-                                     lr=lr, weight_decay=weight_decay)
+    wandb_enabled = config['wandb_enabled']
+    if wandb_enabled:
+        print('Setting up wandb for report')
+        wandb_init(config)
 
-        wandb_enabled = config['wandb_enabled']
-        if wandb_enabled:
-            print('Setting up wandb for report')
-            wandb_init(config)
+    print('Training started...')
+    model.train()
+    epochs = config['training']['epochs']
+    for epoch in range(epochs):
+        start_time = time.time()
+        train(epoch, config, device, train_loader, model, loss_function, optimizer)
+        validate(epoch, config, device, val_loader, model, loss_function)
+        end_time = time.time()
+        print('Time elapsed for epoch {}: {:.0f}s'.format(epoch, end_time - start_time))
 
-        print('Training started...')
-        model.train()
-        epochs = config['training']['epochs']
-        for epoch in range(epochs):
-            start_time = time.time()
-            train(epoch, config, device, train_loader, model, loss_function, optimizer)
-            validate(epoch, config, device, val_loader, model, loss_function)
-            end_time = time.time()
-            print('Time elapsed for epoch {}: {:.0f}s'.format(epoch, end_time - start_time))
-
-        validate('final validation', config, device, val_loader, model, loss_function)
-        if wandb_enabled:
-            wandb.finish()
+    validate('final validation', config, device, val_loader, model, loss_function)
+    if wandb_enabled:
+        wandb.finish()
 
 
 if __name__ == '__main__':

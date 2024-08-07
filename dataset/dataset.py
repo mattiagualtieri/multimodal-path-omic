@@ -24,12 +24,15 @@ class MultimodalDatasetV2(Dataset):
             sort_idx = np.argsort(mad)[-top_rnaseq:]
             self.rnaseq = rnaseq[rnaseq.columns[sort_idx]]
         self.rnaseq_size = len(self.rnaseq.columns)
+        print(f'RNA data size: {self.rnaseq_size}')
         # CNV
         self.cnv = self.data.iloc[:, self.data.columns.str.endswith('_cnv')].astype(float)
         self.cnv_size = len(self.cnv.columns)
+        print(f'CNV data size: {self.cnv_size}')
         # MUT
         self.mut = self.data.iloc[:, self.data.columns.str.endswith('_mut')].astype(float)
         self.mut_size = len(self.mut.columns)
+        print(f'MUT data size: {self.mut_size}')
 
         # Signatures
         self.use_signatures = use_signatures
@@ -47,6 +50,7 @@ class MultimodalDatasetV2(Dataset):
                         columns[gene] = self.data[gene]
                 self.signature_data[signature_name] = pd.DataFrame(columns)
                 self.signature_sizes.append(len(self.signature_data[signature_name].columns))
+            print(f'Signatures size: {self.signature_sizes}')
 
     def __len__(self):
         return len(self.data)

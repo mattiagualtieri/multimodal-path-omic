@@ -1,5 +1,80 @@
 import torch
+import os
+import pandas as pd
+import numpy as np
 from torch.utils.data import Dataset
+from scipy import stats
+
+
+class MultimodalDatasetV2(Dataset):
+    def __init__(self, file, config, use_signatures=False, top_rnaseq=None):
+        self.data = pd.read_csv(file)
+        survival_class, _ = pd.qcut(self.data['survival_months'], q=4, retbins=True, labels=False)
+        self.data['survival_class'] = survival_class
+        if config['dataset']['patches_dir'] is not None:
+            self.patches_dir = config['dataset']['patches_dir']
+        else:
+            self.patches_dir = ''
+
+        # RNA
+        self.rnaseq = self.data.iloc[:, self.data.columns.str.endswith('_rnaseq')].astype(float)
+        if top_rnaseq is not None:
+            rnaseq = self.data[self.data.columns[self.data.columns.str.contains('_rnaseq')]]
+            mad = stats.median_abs_deviation(rnaseq, axis=0)
+            sort_idx = np.argsort(mad)[-top_rnaseq:]
+            self.rnaseq = rnaseq[rnaseq.columns[sort_idx]]
+        self.rnaseq_size = len(self.rnaseq.columns)
+        # CNV
+        self.cnv = self.data.iloc[:, self.data.columns.str.endswith('_cnv')].astype(float)
+        self.cnv_size = len(self.cnv.columns)
+        # MUT
+        self.mut = self.data.iloc[:, self.data.columns.str.endswith('_mut')].astype(float)
+        self.mut_size = len(self.mut.columns)
+
+        # Signatures
+        self.use_signatures = use_signatures
+        if self.use_signatures:
+            self.signature_sizes = []
+            self.signature_data = {}
+            signatures_file = config['dataset']['signatures']
+            signatures_df = pd.read_csv(signatures_file)
+            self.signatures = signatures_df.columns
+            for signature_name in self.signatures:
+                columns = {}
+                for gene in signatures_df[signature_name].dropna():
+                    gene += '_rnaseq'
+                    if gene in self.data.columns:
+                        columns[gene] = self.data[gene]
+                self.signature_data[signature_name] = pd.DataFrame(columns)
+                self.signature_sizes.append(len(self.signature_data[signature_name].columns))
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        survival_months = self.data['survival_months'][index]
+        survival_class = self.data['survival_class'][index]
+        censorship = self.data['censorship'][index]
+
+        slide_name = self.data['slide_id'][index].replace('.svs', '.pt')
+        patches_embeddings = torch.load(os.path.join(self.patches_dir, slide_name))
+
+        if not self.use_signatures:
+            rnaseq = self.rnaseq.iloc[index].values
+            cnv = self.cnv.iloc[index].values
+            mut = self.mut.iloc[index].values
+            omics_data = {
+                'rnaseq': torch.tensor(rnaseq, dtype=torch.float32),
+                'cnv': torch.tensor(cnv, dtype=torch.float32),
+                'mut': torch.tensor(mut, dtype=torch.float32)
+            }
+        else:
+            omics_data = []
+            for signature in self.signatures:
+                signature_data = self.signature_data[signature].iloc[index].astype(float).values
+                omics_data.append(torch.tensor(signature_data, dtype=torch.float32))
+
+        return survival_months, survival_class, censorship, omics_data, patches_embeddings
 
 
 class MultimodalDataset(Dataset):

@@ -6,6 +6,9 @@ dataset:
   signatures: ../../input/signatures.csv
 model:
   name: MCAT
+  use_checkpoint: checkpoints/MCAT_20_202408081300.pt
+  checkpoint_epoch: 10 # 0 if saving is not necessary
+  checkpoint_dir: checkpoints/
 training:
   train_size: 0.5
   loss: ces

@@ -1,0 +1,10 @@
+device: cuda
+dataset:
+  file: ../../input/brca_small.csv
+  patches_dir: ../../input/patches/
+  signatures: ../../input/signatures.csv
+model:
+  name: MCAT
+  checkpoint: ../mcat/checkpoints/MCAT_20_202408081300.pt
+  use_signatures: True
+  top_rnaseq: False

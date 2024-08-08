@@ -1,5 +1,6 @@
 import torch.cuda
 import yaml
+import os
 import time
 import datetime
 import wandb
@@ -16,6 +17,7 @@ from dataset.dataset import MultimodalDatasetV2
 def train(epoch, config, device, train_loader, model, loss_function, optimizer):
     model.train()
     grad_acc_step = config['training']['grad_acc_step']
+    checkpoint_epoch = config['model']['checkpoint_epoch']
     train_loss = 0.0
     risk_scores = np.zeros((len(train_loader)))
     censorships = np.zeros((len(train_loader)))
@@ -58,7 +60,19 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
     # Calculate loss and error for epoch
     train_loss /= len(train_loader)
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
-    print('Epoch: {}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch, train_loss, c_index))
+    print('Epoch: {}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch + 1, train_loss, c_index))
+    if checkpoint_epoch % (epoch + 1) == 0:
+        now = datetime.datetime.now().strftime('%Y%m%d%H%M')
+        filename = f'{config["model"]["name"]}_{epoch + 1}_{now}.pt'
+        checkpoint_dir = config['model']['checkpoint_dir']
+        checkpoint_path = os.path.join(checkpoint_dir, filename)
+        print(f'Saving model into {checkpoint_path}')
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': train_loss,
+        }, checkpoint_path)
     wandb_enabled = config['wandb_enabled']
     if wandb_enabled:
         wandb.log({"train_loss": train_loss, "train_c_index": c_index})
@@ -146,6 +160,12 @@ def main():
     # Model
     omics_sizes = dataset.signature_sizes
     model = MultimodalCoAttentionTransformer(omic_sizes=omics_sizes)
+    checkpoint_path = config['model']['use_checkpoint']
+    checkpoint = None
+    if checkpoint_path is not None:
+        print(f'Loading model checkpoint from {checkpoint_path}')
+        checkpoint = torch.load(checkpoint_path)
+        model.load_state_dict(checkpoint['model_state_dict'])
     model = nn.DataParallel(model)
     model.to(device=device)
     # Loss function
@@ -162,6 +182,10 @@ def main():
     weight_decay = config['training']['weight_decay']
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
                                  lr=lr, weight_decay=weight_decay)
+    starting_epoch = 0
+    if checkpoint_path is not None:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        starting_epoch = checkpoint['epoch']
 
     wandb_enabled = config['wandb_enabled']
     if wandb_enabled:
@@ -171,7 +195,7 @@ def main():
     print('Training started...')
     model.train()
     epochs = config['training']['epochs']
-    for epoch in range(epochs):
+    for epoch in range(starting_epoch, epochs):
         start_time = time.time()
         train(epoch, config, device, train_loader, model, loss_function, optimizer)
         validate(epoch, config, device, val_loader, model, loss_function)

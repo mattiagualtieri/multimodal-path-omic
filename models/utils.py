@@ -1,15 +1,17 @@
 import h5py
+import math
 import torch
+import torch.nn as nn
 
 
 def get_omics_sizes_from_dataset(hdf5_file):
     category_counts = {}
     with h5py.File(hdf5_file, 'r') as f:
-        first_case_id = list(f.keys())[0]  # Get the first case ID
-        omics_group = f[first_case_id]['omics']  # Access the 'omics' group under the first case ID
+        first_case_id = list(f.keys())[0]
+        omics_group = f[first_case_id]['omics']
         for category in omics_group.keys():
             category_counts.setdefault(category, 0)
-            category_counts[category] = len(omics_group[category])  # Count number of values in each category
+            category_counts[category] = len(omics_group[category])
     sorted_counts = [category_counts[category] for category in sorted(category_counts.keys())]
     return sorted_counts
 
@@ -36,3 +38,11 @@ def l1_reg_all(model):
         else:
             l1_reg = l1_reg + torch.abs(W).sum()
     return l1_reg
+
+
+def init_max_weights(module):
+    for m in module.modules():
+        if type(m) == nn.Linear:
+            stdv = 1. / math.sqrt(m.weight.size(1))
+            m.weight.data.normal_(0, stdv)
+            m.bias.data.zero_()

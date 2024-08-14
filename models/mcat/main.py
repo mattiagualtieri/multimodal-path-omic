@@ -121,13 +121,14 @@ def validate(epoch, config, device, val_loader, model, loss_function):
 
 def wandb_init(config):
     wandb.init(
-        project="MCAT",
+        project='MCAT',
         config={
-            "learning_rate": config['training']['lr'],
-            "weight_decay": config['training']['weight_decay'],
-            "gradient_acceleration_step": config['training']['grad_acc_step'],
-            "epochs": config['training']['epochs'],
-            "architecture": config['model']['name'],
+            'learning_rate': config['training']['lr'],
+            'weight_decay': config['training']['weight_decay'],
+            'gradient_acceleration_step': config['training']['grad_acc_step'],
+            'epochs': config['training']['epochs'],
+            'architecture': config['model']['name'],
+            'fusion': config['model']['fusion']
         }
     )
 
@@ -159,7 +160,8 @@ def main():
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
     # Model
     omics_sizes = dataset.signature_sizes
-    model = MultimodalCoAttentionTransformer(omic_sizes=omics_sizes)
+    fusion = config['model']['fusion']
+    model = MultimodalCoAttentionTransformer(omic_sizes=omics_sizes, fusion=fusion)
     checkpoint_path = config['model']['use_checkpoint']
     checkpoint = None
     if checkpoint_path is not None:

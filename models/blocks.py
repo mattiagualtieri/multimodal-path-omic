@@ -15,9 +15,13 @@ class AttentionNetGated(nn.Module):
         super(AttentionNetGated, self).__init__()
         self.attention_a = [
             nn.Linear(input_dim, hidden_dim),
-            nn.Tanh()]
+            nn.Tanh()
+        ]
 
-        self.attention_b = [nn.Linear(input_dim, hidden_dim), nn.Sigmoid()]
+        self.attention_b = [
+            nn.Linear(input_dim, hidden_dim),
+            nn.Sigmoid()
+        ]
         if dropout:
             self.attention_a.append(nn.Dropout(0.25))
             self.attention_b.append(nn.Dropout(0.25))

@@ -3,46 +3,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from models.blocks import AttentionNetGated
+from models.fusion import BilinearFusion, ConcatFusion, GatedConcatFusion
+
 
 # https://github.com/mahmoodlab/MCAT/blob/master/Model%20Computation%20%2B%20Complexity%20Overview.ipynb
 
 
-class AttentionNetGated(nn.Module):
-    def __init__(self, input_dim=256, hidden_dim=256, dropout=True, n_classes=1):
-        r"""
-        Attention Network with Sigmoid Gating (3 fc layers)
-
-        args:
-            L (int): input feature dimension
-            D (int): hidden layer dimension
-            dropout (bool): whether to apply dropout (p = 0.25)
-            n_classes (int): number of classes
-        """
-        super(AttentionNetGated, self).__init__()
-        self.attention_a = [
-            nn.Linear(input_dim, hidden_dim),
-            nn.Tanh()]
-
-        self.attention_b = [nn.Linear(input_dim, hidden_dim), nn.Sigmoid()]
-        if dropout:
-            self.attention_a.append(nn.Dropout(0.25))
-            self.attention_b.append(nn.Dropout(0.25))
-
-        self.attention_a = nn.Sequential(*self.attention_a)
-        self.attention_b = nn.Sequential(*self.attention_b)
-        self.attention_c = nn.Linear(hidden_dim, n_classes)
-
-    def forward(self, x):
-        a = self.attention_a(x)
-        b = self.attention_b(x)
-        A = a.mul(b)
-        # N x n_classes
-        A = self.attention_c(A)
-        return A, x
-
-
 class MultimodalCoAttentionTransformer(nn.Module):
-    def __init__(self, omic_sizes: [], n_classes: int = 4, dropout: float = 0.25):
+    def __init__(self, omic_sizes: [], n_classes: int = 4, dropout: float = 0.25, fusion: str = 'concat'):
         super(MultimodalCoAttentionTransformer, self).__init__()
         self.n_classes = n_classes
         self.d_k = 256
@@ -93,9 +62,15 @@ class MultimodalCoAttentionTransformer(nn.Module):
         self.omic_rho = nn.Sequential(*[nn.Linear(256, 256), nn.ReLU(), nn.Dropout(dropout)])
 
         # Fusion Layer
-        self.fusion_layer = nn.Sequential(*[
-            nn.Linear(256 * 2, 256), nn.ReLU(), nn.Linear(256, 256), nn.ReLU()
-        ])
+        self.fusion = fusion
+        if self.fusion == 'concat':
+            self.fusion_layer = ConcatFusion(dim1=256, dim2=256)
+        elif self.fusion == 'bilinear':
+            self.fusion_layer = BilinearFusion(dim1=256, dim2=256, scale_dim1=8, scale_dim2=8, mmhid=256)
+        elif self.fusion == 'gated_concat':
+            self.fusion_layer = GatedConcatFusion(dim1=256, dim2=256)
+        else:
+            raise RuntimeError(f'Fusion mechanism {self.fusion} not implemented')
 
         # Classifier
         self.classifier = nn.Linear(256, n_classes)
@@ -134,9 +109,8 @@ class MultimodalCoAttentionTransformer(nn.Module):
         h_omic = self.omic_rho(h_omic).squeeze()
 
         # Fusion Layer
-        concat = torch.cat([h_path, h_omic], dim=0)
         # h: final representation (dk)
-        h = self.fusion_layer(concat)
+        h = self.fusion_layer(h_path, h_omic)
 
         # Survival Layer
 

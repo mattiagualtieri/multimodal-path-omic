@@ -1,15 +1,15 @@
 device: cuda
 wandb_enabled: False
 dataset:
-  file: ../../input/brca_small.csv
+  file: ../../input/brca.csv
   patches_dir: ../../input/patches/
   signatures: ../../input/signatures.csv
 model:
   name: MCAT
-  use_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt
-  checkpoint_epoch: 10 # 0 if saving is not necessary
+  load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt
+  checkpoint_epoch: 20 # 0 if saving is not necessary
   checkpoint_dir: checkpoints/
-  fusion: gated_concat
+  fusion: concat # gated_concat
 training:
   train_size: 0.5
   loss: ces
@@ -17,3 +17,10 @@ training:
   lr: 0.0002
   weight_decay: 0.00001
   grad_acc_step: 32
+inference:
+  attention_file: output/attention.pt
+  dataset:
+    file: ../../input/brca_inference.csv
+  model:
+    name: MCAT
+    load_from_checkpoint: checkpoints/<checkpoint_name>

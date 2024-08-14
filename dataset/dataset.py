@@ -7,7 +7,7 @@ from scipy import stats
 
 
 class MultimodalDatasetV2(Dataset):
-    def __init__(self, file, config, use_signatures=False, top_rnaseq=None):
+    def __init__(self, file, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True):
         self.data = pd.read_csv(file)
         survival_class, _ = pd.qcut(self.data['survival_months'], q=4, retbins=True, labels=False)
         self.data['survival_class'] = survival_class
@@ -15,6 +15,18 @@ class MultimodalDatasetV2(Dataset):
             self.patches_dir = config['dataset']['patches_dir']
         else:
             self.patches_dir = ''
+
+        if remove_incomplete_samples:
+            slide_index = 0
+            complete_data_only = []
+            for slide in self.data['slide_id']:
+                slide_name = slide.replace('.svs', '.pt')
+                if os.path.exists(os.path.join(self.patches_dir, slide_name)):
+                    complete_data_only.append(self.data.iloc[slide_index])
+                slide_index += 1
+            self.data = pd.DataFrame(complete_data_only)
+            self.data.reset_index(drop=True, inplace=True)
+            print(f'Remaining samples after removing incomplete: {len(self.data)}')
 
         # RNA
         self.rnaseq = self.data.iloc[:, self.data.columns.str.endswith('_rnaseq')].astype(float)

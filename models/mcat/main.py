@@ -61,7 +61,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
     train_loss /= len(train_loader)
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
     print('Epoch: {}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch + 1, train_loss, c_index))
-    if checkpoint_epoch % (epoch + 1) == 0 and epoch + 1 != 1:
+    if (epoch + 1) % checkpoint_epoch == 0 and epoch != 0:
         now = datetime.datetime.now().strftime('%Y%m%d%H%M')
         filename = f'{config["model"]["name"]}_{epoch + 1}_{now}.pt'
         checkpoint_dir = config['model']['checkpoint_dir']
@@ -113,7 +113,7 @@ def validate(epoch, config, device, val_loader, model, loss_function):
     # calculate loss and error
     val_loss /= len(val_loader)
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
-    print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch, val_loss, c_index))
+    print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch + 1, val_loss, c_index))
     wandb_enabled = config['wandb_enabled']
     if wandb_enabled:
         wandb.log({"val_loss": val_loss, "val_c_index": c_index})
@@ -198,11 +198,12 @@ def main():
     model.train()
     epochs = config['training']['epochs']
     for epoch in range(starting_epoch, epochs):
+        print(f'Epoch: {epoch + 1}')
         start_time = time.time()
         train(epoch, config, device, train_loader, model, loss_function, optimizer)
         validate(epoch, config, device, val_loader, model, loss_function)
         end_time = time.time()
-        print('Time elapsed for epoch {}: {:.0f}s'.format(epoch, end_time - start_time))
+        print('Time elapsed for epoch {}: {:.0f}s'.format(epoch + 1, end_time - start_time))
 
     validate('final validation', config, device, val_loader, model, loss_function)
     if wandb_enabled:

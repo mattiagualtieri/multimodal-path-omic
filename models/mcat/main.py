@@ -61,7 +61,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
     train_loss /= len(train_loader)
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
     print('Epoch: {}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch + 1, train_loss, c_index))
-    if checkpoint_epoch % (epoch + 1) == 0:
+    if checkpoint_epoch % (epoch + 1) == 0 and epoch + 1 != 1:
         now = datetime.datetime.now().strftime('%Y%m%d%H%M')
         filename = f'{config["model"]["name"]}_{epoch + 1}_{now}.pt'
         checkpoint_dir = config['model']['checkpoint_dir']

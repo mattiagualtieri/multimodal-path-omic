@@ -10,8 +10,8 @@ from models.reducers import (PoolingSequenceReducer,
 
 
 class MultimodalDoubleCoAttentionTransformer(nn.Module):
-    def __init__(self, omic_sizes: [], n_classes: int = 4, dropout: float = 0.25, seq_reducer='pooling',
-                 reduced_size=10):
+    def __init__(self, omic_sizes: [], n_classes: int = 4, dropout: float = 0.25, fusion: str = 'concat',
+                 seq_reducer='pooling', reduced_size=10):
         super(MultimodalDoubleCoAttentionTransformer, self).__init__()
         self.n_classes = n_classes
         self.d_k = 256

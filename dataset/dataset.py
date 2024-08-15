@@ -7,13 +7,15 @@ from scipy import stats
 
 
 class MultimodalDatasetV2(Dataset):
-    def __init__(self, file, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True):
+    def __init__(self, file, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, inference=False):
         self.data = pd.read_csv(file)
         survival_class, _ = pd.qcut(self.data['survival_months'], q=4, retbins=True, labels=False)
         self.data['survival_class'] = survival_class
-        if config['dataset']['patches_dir'] is not None:
-            self.patches_dir = config['dataset']['patches_dir']
+        if inference:
+            self.patches_dir = config['inference']['dataset']['patches_dir']
         else:
+            self.patches_dir = config['dataset']['patches_dir']
+        if self.patches_dir is None:
             self.patches_dir = ''
 
         if remove_incomplete_samples:

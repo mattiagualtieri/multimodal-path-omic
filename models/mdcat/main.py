@@ -1,23 +1,23 @@
 import torch.cuda
 import yaml
+import os
 import time
 import datetime
-import h5py
 import wandb
 import numpy as np
 import torch.nn as nn
 
 from torch.utils.data import DataLoader, random_split
 from sksurv.metrics import concordance_index_censored
-from models.utils import get_omics_sizes_from_dataset
 from models.loss import CrossEntropySurvivalLoss
 from mdcat import MultimodalDoubleCoAttentionTransformer
-from dataset.dataset import MultimodalDataset
+from dataset.dataset import MultimodalDatasetV2
 
 
 def train(epoch, config, device, train_loader, model, loss_function, optimizer):
     model.train()
     grad_acc_step = config['training']['grad_acc_step']
+    checkpoint_epoch = config['model']['checkpoint_epoch']
     train_loss = 0.0
     risk_scores = np.zeros((len(train_loader)))
     censorships = np.zeros((len(train_loader)))
@@ -30,7 +30,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
         censorship = censorship.type(torch.FloatTensor).to(device)
         patches_embeddings = patches_embeddings.to(device)
         omics_data = [omic_data.to(device) for omic_data in omics_data]
-        hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data, device=config['device'])
+        hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
 
         if config['training']['loss'] == 'ce':
             loss = loss_function(Y, survival_class.long())
@@ -60,7 +60,19 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
     # Calculate loss and error for epoch
     train_loss /= len(train_loader)
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
-    print('Epoch: {}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch, train_loss, c_index))
+    print('Epoch: {}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch + 1, train_loss, c_index))
+    if (epoch + 1) % checkpoint_epoch == 0 and epoch != 0:
+        now = datetime.datetime.now().strftime('%Y%m%d%H%M')
+        filename = f'{config["model"]["name"]}_{epoch + 1}_{now}.pt'
+        checkpoint_dir = config['model']['checkpoint_dir']
+        checkpoint_path = os.path.join(checkpoint_dir, filename)
+        print(f'Saving model into {checkpoint_path}')
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': train_loss,
+        }, checkpoint_path)
     wandb_enabled = config['wandb_enabled']
     if wandb_enabled:
         wandb.log({"train_loss": train_loss, "train_c_index": c_index})
@@ -81,7 +93,7 @@ def validate(epoch, config, device, val_loader, model, loss_function):
         patches_embeddings = patches_embeddings.to(device)
         omics_data = [omic_data.to(device) for omic_data in omics_data]
         with torch.no_grad():
-            hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data, device=config['device'])
+            hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
 
         if config['training']['loss'] == 'ce':
             loss = loss_function(Y, survival_class.long())
@@ -101,7 +113,7 @@ def validate(epoch, config, device, val_loader, model, loss_function):
     # calculate loss and error
     val_loss /= len(val_loader)
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
-    print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch, val_loss, c_index))
+    print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch + 1, val_loss, c_index))
     wandb_enabled = config['wandb_enabled']
     if wandb_enabled:
         wandb.log({"val_loss": val_loss, "val_c_index": c_index})
@@ -114,9 +126,10 @@ def wandb_init(config):
             'learning_rate': config['training']['lr'],
             'weight_decay': config['training']['weight_decay'],
             'gradient_acceleration_step': config['training']['grad_acc_step'],
-            'seq_reducer': config['training']['seq_reducer'],
             'epochs': config['training']['epochs'],
             'architecture': config['model']['name'],
+            'fusion': config['model']['fusion'],
+            'reducer': config['training']['reducer']
         }
     )
 
@@ -136,58 +149,68 @@ def main():
             print(f'Using device: {torch.cuda.get_device_name(device_index)}')
     print(f'Running on {device.upper()}')
 
-    dataset_file = config['dataset']['dataset_file']
+    # Dataset
+    file_csv = config['dataset']['file']
+    dataset = MultimodalDatasetV2(file_csv, config, use_signatures=True)
+    train_size = config['training']['train_size']
+    print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')
+    train_size = int(train_size * len(dataset))
+    val_size = len(dataset) - train_size
+    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
+    # Model
+    omics_sizes = dataset.signature_sizes
+    seq_reducer = config['training']['seq_reducer']
+    print(f'Using sequence reducer: {seq_reducer}')
+    fusion = config['model']['fusion']
+    model = MultimodalDoubleCoAttentionTransformer(omic_sizes=omics_sizes, seq_reducer=seq_reducer, fusion=fusion)
+    checkpoint_path = config['model']['load_from_checkpoint']
+    checkpoint = None
+    if checkpoint_path is not None:
+        print(f'Loading model checkpoint from {checkpoint_path}')
+        checkpoint = torch.load(checkpoint_path)
+        model.load_state_dict(checkpoint['model_state_dict'])
+    model = nn.DataParallel(model)
+    model.to(device=device)
+    # Loss function
+    if config['training']['loss'] == 'ce':
+        print('Using CrossEntropyLoss during training')
+        loss_function = nn.CrossEntropyLoss()
+    elif config['training']['loss'] == 'ces':
+        print('Using CrossEntropySurvivalLoss during training')
+        loss_function = CrossEntropySurvivalLoss()
+    else:
+        raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
+    # Optimizer
+    lr = config['training']['lr']
+    weight_decay = config['training']['weight_decay']
+    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
+                                 lr=lr, weight_decay=weight_decay)
+    starting_epoch = 0
+    if checkpoint_path is not None:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        starting_epoch = checkpoint['epoch']
 
-    with (h5py.File(dataset_file, 'r') as hdf5_file):
-        # Dataset
-        dataset = MultimodalDataset(hdf5_file)
-        train_size = config['training']['train_size']
-        print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')
-        train_size = int(train_size * len(dataset))
-        val_size = len(dataset) - train_size
-        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-        train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
-        # Model
-        omics_sizes = get_omics_sizes_from_dataset(dataset_file)
-        seq_reducer = config['training']['seq_reducer']
-        print(f'Using sequence reducer: {seq_reducer}')
-        model = MultimodalDoubleCoAttentionTransformer(omic_sizes=omics_sizes, seq_reducer=seq_reducer)
-        model = nn.DataParallel(model)
-        model.to(device=device)
-        # Loss function
-        if config['training']['loss'] == 'ce':
-            print('Using CrossEntropyLoss during training')
-            loss_function = nn.CrossEntropyLoss()
-        elif config['training']['loss'] == 'ces':
-            print('Using CrossEntropySurvivalLoss during training')
-            loss_function = CrossEntropySurvivalLoss()
-        else:
-            raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
-        # Optimizer
-        lr = config['training']['lr']
-        weight_decay = config['training']['weight_decay']
-        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
-                                     lr=lr, weight_decay=weight_decay)
+    wandb_enabled = config['wandb_enabled']
+    if wandb_enabled:
+        print('Setting up wandb for report')
+        wandb_init(config)
 
-        wandb_enabled = config['wandb_enabled']
-        if wandb_enabled:
-            print('Setting up wandb for report')
-            wandb_init(config)
+    print('Training started...')
+    model.train()
+    epochs = config['training']['epochs']
+    for epoch in range(starting_epoch, epochs):
+        print(f'Epoch: {epoch + 1}')
+        start_time = time.time()
+        train(epoch, config, device, train_loader, model, loss_function, optimizer)
+        validate(epoch, config, device, val_loader, model, loss_function)
+        end_time = time.time()
+        print('Time elapsed for epoch {}: {:.0f}s'.format(epoch + 1, end_time - start_time))
 
-        print('Training started...')
-        model.train()
-        epochs = config['training']['epochs']
-        for epoch in range(epochs):
-            start_time = time.time()
-            train(epoch, config, device, train_loader, model, loss_function, optimizer)
-            validate(epoch, config, device, val_loader, model, loss_function)
-            end_time = time.time()
-            print('Time elapsed for epoch {}: {:.0f}s'.format(epoch, end_time - start_time))
-
-        validate('final validation', config, device, val_loader, model, loss_function)
-        if wandb_enabled:
-            wandb.finish()
+    validate('final validation', config, device, val_loader, model, loss_function)
+    if wandb_enabled:
+        wandb.finish()
 
 
 if __name__ == '__main__':

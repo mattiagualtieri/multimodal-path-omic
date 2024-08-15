@@ -50,19 +50,19 @@ def main():
 
     # Dataset
     file_csv = config['inference']['dataset']['file']
-    dataset = MultimodalDatasetV2(file_csv, config, use_signatures=True)
+    dataset = MultimodalDatasetV2(file_csv, config, use_signatures=True, inference=True)
     loader = DataLoader(dataset, batch_size=1, shuffle=False)
     # Model
     omics_sizes = dataset.signature_sizes
     fusion = config['model']['fusion']
     model = MultimodalCoAttentionTransformer(omic_sizes=omics_sizes, fusion=fusion)
-    checkpoint_path = config['model']['load_from_checkpoint']
+    checkpoint_path = config['inference']['model']['load_from_checkpoint']
     if checkpoint_path is None:
         raise RuntimeError('No checkpoint specified')
     print(f'Loading model checkpoint from {checkpoint_path}')
-    checkpoint = torch.load(checkpoint_path)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    checkpoint = torch.load(checkpoint_path, map_location=device)
     model = nn.DataParallel(model)
+    model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device=device)
 
     print('Inference started...')

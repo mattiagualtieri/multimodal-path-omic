@@ -5,3 +5,6 @@ experiments
 sbatch
 *.sbatch
 wandb
+checkpoints
+outputs
+*.pt

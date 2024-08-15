@@ -113,7 +113,10 @@ def validate(epoch, config, device, val_loader, model, loss_function):
     # calculate loss and error
     val_loss /= len(val_loader)
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
-    print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch + 1, val_loss, c_index))
+    if epoch == 'final validation':
+        print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch, val_loss, c_index))
+    else:
+        print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch + 1, val_loss, c_index))
     wandb_enabled = config['wandb_enabled']
     if wandb_enabled:
         wandb.log({"val_loss": val_loss, "val_c_index": c_index})

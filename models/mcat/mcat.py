@@ -49,7 +49,7 @@ class MultimodalCoAttentionTransformer(nn.Module):
         self.path_transformer = nn.TransformerEncoder(path_encoder_layer, num_layers=1)  # 2
 
         # WSI Global Attention Pooling (rho_H)
-        self.path_attention_head = AttentionNetGated(n_classes=1)
+        self.path_attention_head = AttentionNetGated(n_classes=1, input_dim=self.dk, hidden_dim=self.dk)
         self.path_rho = nn.Sequential(*[nn.Linear(self.dk, self.dk), nn.ReLU(), nn.Dropout(dropout)])
 
         # Omic Transformer (T_G)
@@ -58,7 +58,7 @@ class MultimodalCoAttentionTransformer(nn.Module):
         self.omic_transformer = nn.TransformerEncoder(omic_encoder_layer, num_layers=1)  # 2
 
         # Genomic Global Attention Pooling (rho_G)
-        self.omic_attention_head = AttentionNetGated(n_classes=1)
+        self.omic_attention_head = AttentionNetGated(n_classes=1, input_dim=self.dk, hidden_dim=self.dk)
         self.omic_rho = nn.Sequential(*[nn.Linear(self.dk, self.dk), nn.ReLU(), nn.Dropout(dropout)])
 
         # Fusion Layer

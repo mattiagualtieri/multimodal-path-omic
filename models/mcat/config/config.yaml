@@ -20,7 +20,7 @@ training:
 inference:
   attention_file: attention_outputs/ATTN_TCGA-A8-A08L-01Z-00-DX1.0FC652B1-336D-4198-93FE-58D2214866D3.pt
   dataset:
-    file: ../../input/inference/brca.csv
+    file: ../../input/inference/prova.csv
     patches_dir: ../../input/inference/
     signatures: ../../input/signatures.csv
   model:

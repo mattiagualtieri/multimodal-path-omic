@@ -35,7 +35,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
         if config['training']['loss'] == 'ce':
             loss = loss_function(Y, survival_class.long())
         elif config['training']['loss'] == 'ces':
-            loss = loss_function(hazards, survs, survival_class, c=censorship, alpha=0.0)
+            loss = loss_function(hazards, survs, survival_class, c=censorship)
         else:
             raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
         loss_value = loss.item()

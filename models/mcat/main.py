@@ -162,9 +162,10 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
     # Model
+    dk = config['model']['dk']
     omics_sizes = dataset.signature_sizes
     fusion = config['model']['fusion']
-    model = MultimodalCoAttentionTransformer(omic_sizes=omics_sizes, fusion=fusion, device=device)
+    model = MultimodalCoAttentionTransformer(dk=dk, omic_sizes=omics_sizes, fusion=fusion, device=device)
     checkpoint_path = config['model']['load_from_checkpoint']
     checkpoint = None
     if checkpoint_path is not None:

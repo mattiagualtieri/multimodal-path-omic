@@ -29,11 +29,11 @@ class MultimodalCoAttentionTransformer(nn.Module):
         for omic_size in omic_sizes:
             fc = nn.Sequential(
                 nn.Sequential(
-                    nn.Linear(omic_size, dk),
+                    nn.Linear(omic_size, self.dk),
                     nn.ELU(),
                     nn.AlphaDropout(p=dropout, inplace=False)),
                 nn.Sequential(
-                    nn.Linear(dk, self.dk),
+                    nn.Linear(self.dk, self.dk),
                     nn.ELU(),
                     nn.AlphaDropout(p=dropout, inplace=False))
             )
@@ -44,36 +44,36 @@ class MultimodalCoAttentionTransformer(nn.Module):
         self.co_attention = nn.MultiheadAttention(embed_dim=self.dk, num_heads=1)
 
         # Path Transformer (T_H)
-        path_encoder_layer = nn.TransformerEncoderLayer(d_model=dk, nhead=8, dim_feedforward=512, dropout=dropout,
+        path_encoder_layer = nn.TransformerEncoderLayer(d_model=self.dk, nhead=4, dim_feedforward=512, dropout=0.4,  # 8 attention heads, dropout
                                                         activation='relu')
-        self.path_transformer = nn.TransformerEncoder(path_encoder_layer, num_layers=2)
+        self.path_transformer = nn.TransformerEncoder(path_encoder_layer, num_layers=1)  # 2
 
         # WSI Global Attention Pooling (rho_H)
         self.path_attention_head = AttentionNetGated(n_classes=1)
-        self.path_rho = nn.Sequential(*[nn.Linear(dk, dk), nn.ReLU(), nn.Dropout(dropout)])
+        self.path_rho = nn.Sequential(*[nn.Linear(self.dk, self.dk), nn.ReLU(), nn.Dropout(dropout)])
 
         # Omic Transformer (T_G)
-        omic_encoder_layer = nn.TransformerEncoderLayer(d_model=dk, nhead=8, dim_feedforward=512, dropout=dropout,
+        omic_encoder_layer = nn.TransformerEncoderLayer(d_model=self.dk, nhead=4, dim_feedforward=512, dropout=0.4,  # 8 attention heads, dropout
                                                         activation='relu')
-        self.omic_transformer = nn.TransformerEncoder(omic_encoder_layer, num_layers=2)
+        self.omic_transformer = nn.TransformerEncoder(omic_encoder_layer, num_layers=1)  # 2
 
         # Genomic Global Attention Pooling (rho_G)
         self.omic_attention_head = AttentionNetGated(n_classes=1)
-        self.omic_rho = nn.Sequential(*[nn.Linear(dk, dk), nn.ReLU(), nn.Dropout(dropout)])
+        self.omic_rho = nn.Sequential(*[nn.Linear(self.dk, self.dk), nn.ReLU(), nn.Dropout(dropout)])
 
         # Fusion Layer
         self.fusion = fusion
         if self.fusion == 'concat':
-            self.fusion_layer = ConcatFusion(dims=[dk, dk], device=device)
+            self.fusion_layer = ConcatFusion(dims=[self.dk, self.dk], hidden_size=self.dk, output_size=self.dk, device=device)
         elif self.fusion == 'bilinear':
-            self.fusion_layer = BilinearFusion(dim1=dk, dim2=dk, output_size=dk)
+            self.fusion_layer = BilinearFusion(dim1=self.dk, dim2=self.dk, output_size=self.dk)
         elif self.fusion == 'gated_concat':
-            self.fusion_layer = GatedConcatFusion(dims=[dk, dk], device=device)
+            self.fusion_layer = GatedConcatFusion(dims=[self.dk, self.dk], hidden_size=self.dk, output_size=self.dk, device=device)
         else:
             raise RuntimeError(f'Fusion mechanism {self.fusion} not implemented')
 
         # Classifier
-        self.classifier = nn.Linear(dk, n_classes)
+        self.classifier = nn.Linear(self.dk, n_classes)
 
     def forward(self, wsi, omics):
         # WSI Fully connected layer

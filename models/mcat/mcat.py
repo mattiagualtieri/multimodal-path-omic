@@ -11,7 +11,7 @@ from models.fusion import BilinearFusion, ConcatFusion, GatedConcatFusion
 
 
 class MultimodalCoAttentionTransformer(nn.Module):
-    def __init__(self, omic_sizes: [], dk: int = 256, n_classes: int = 4, dropout: float = 0.25, fusion: str = 'concat'):
+    def __init__(self, omic_sizes: [], dk: int = 256, n_classes: int = 4, dropout: float = 0.25, fusion: str = 'concat', device: str = 'cpu'):
         super(MultimodalCoAttentionTransformer, self).__init__()
         self.n_classes = n_classes
         self.dk = dk
@@ -64,11 +64,11 @@ class MultimodalCoAttentionTransformer(nn.Module):
         # Fusion Layer
         self.fusion = fusion
         if self.fusion == 'concat':
-            self.fusion_layer = ConcatFusion(dims=[dk, dk])
+            self.fusion_layer = ConcatFusion(dims=[dk, dk], device=device)
         elif self.fusion == 'bilinear':
             self.fusion_layer = BilinearFusion(dim1=dk, dim2=dk, output_size=dk)
         elif self.fusion == 'gated_concat':
-            self.fusion_layer = GatedConcatFusion(dims=[dk, dk])
+            self.fusion_layer = GatedConcatFusion(dims=[dk, dk], device=device)
         else:
             raise RuntimeError(f'Fusion mechanism {self.fusion} not implemented')
 

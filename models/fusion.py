@@ -5,15 +5,14 @@ from models.utils import init_max_weights
 
 
 class ConcatFusion(nn.Module):
-    def __init__(self, dims: list, hidden_size: int = 256, output_size: int = 256):
+    def __init__(self, dims: list, hidden_size: int = 256, output_size: int = 256, device: str = 'cpu'):
         super(ConcatFusion, self).__init__()
-        self.inputs = len(dims)
         self.fusion_layer = nn.Sequential(*[
             nn.Linear(sum(dims), hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, output_size),
             nn.ReLU()
-        ])
+        ]).to(device=device)
 
     def forward(self, *x):
         concat = torch.cat(x, dim=0)
@@ -21,17 +20,17 @@ class ConcatFusion(nn.Module):
 
 
 class GatedConcatFusion(nn.Module):
-    def __init__(self, dims: list, hidden_size: int = 256, output_size: int = 256):
+    def __init__(self, dims: list, hidden_size: int = 256, output_size: int = 256, device: str = 'cpu'):
         super(GatedConcatFusion, self).__init__()
         self.gates = []
         for dim in dims:
-            self.gates.append(nn.Sequential(nn.Linear(dim, 1), nn.Sigmoid()))
+            self.gates.append(nn.Sequential(nn.Linear(dim, 1), nn.Sigmoid()).to(device=device))
         self.fusion_layer = nn.Sequential(*[
             nn.Linear(sum(dims), hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, output_size),
             nn.ReLU()
-        ])
+        ]).to(device=device)
 
     def forward(self, *x):
         items = []

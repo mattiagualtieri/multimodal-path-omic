@@ -164,7 +164,7 @@ def main():
     # Model
     omics_sizes = dataset.signature_sizes
     fusion = config['model']['fusion']
-    model = MultimodalCoAttentionTransformer(omic_sizes=omics_sizes, fusion=fusion)
+    model = MultimodalCoAttentionTransformer(omic_sizes=omics_sizes, fusion=fusion, device=device)
     checkpoint_path = config['model']['load_from_checkpoint']
     checkpoint = None
     if checkpoint_path is not None:

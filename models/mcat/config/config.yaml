@@ -1,28 +1,26 @@
 device: cuda
-wandb_enabled: False
+wandb_enabled: True
 dataset:
-  file: ../../input/brca.csv
-  patches_dir: ../../input/patches/
-  signatures: ../../input/signatures.csv
+  file: /work/h2020deciderficarra_shared/mgualtieri/brca/brca.csv
+  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/brca/slides/
+  signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
 model:
   name: MCAT
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt
   checkpoint_epoch: 20 # 0 if saving is not necessary
   checkpoint_dir: checkpoints/
-  fusion: concat # gated_concat
+  fusion: gated_concat # concat, gated_concat, bilinear
 training:
   train_size: 0.8
   loss: ces
   epochs: 20
-  lr: 0.0002
+  lr: 0.0001
   weight_decay: 0.00001
   grad_acc_step: 32
 inference:
-  attention_file: attention_outputs/ATTN_TCGA-A8-A08L-01Z-00-DX1.0FC652B1-336D-4198-93FE-58D2214866D3.pt
+  attention_file: output/attention.pt
   dataset:
-    file: ../../input/inference/prova.csv
-    patches_dir: ../../input/inference/
-    signatures: ../../input/signatures.csv
+    file: ../../input/inference/brca.csv
   model:
     name: MCAT
     load_from_checkpoint: checkpoints/MCAT_20_202408141537.pt

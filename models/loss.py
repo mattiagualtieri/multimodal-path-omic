@@ -55,6 +55,32 @@ class CoxSurvivalLoss:
         return loss_cox
 
 
+class SurvivalClassificationTobitLoss:
+    def __call__(self, predictions: torch.Tensor, label: torch.Tensor, c: torch.Tensor, eps: float = 1e-7) -> torch.Tensor:
+        """
+        Compute the Tobit loss for survival analysis with class-based predictions.
+
+        Parameters:
+        - predictions: Predicted probabilities for each class (Tensor of shape [4]).
+        - label: True class label (scalar tensor).
+        - censorship: Binary scalar tensor, where 1 indicates censored data and 0 indicates uncensored data.
+
+        Returns:
+        - Loss as a scalar tensor.
+        """
+
+        predictions = predictions.reshape(4)
+        if c.item() == 0:
+            # Uncensored: Use standard cross-entropy loss
+            loss = -torch.log(predictions[label] + eps)
+        else:
+            # Censored: Calculate cumulative probability for survival at least as long as the censored label
+            cumulative_prob = torch.sum(predictions[label:])
+            loss = -torch.log(cumulative_prob + eps)
+
+        return loss
+
+
 def test_ces_loss():
     print('Testing CrossEntropySurvivalLoss...')
     loss_function = CrossEntropySurvivalLoss()
@@ -65,11 +91,44 @@ def test_ces_loss():
     c = torch.tensor([0.0])
 
     loss = loss_function(hazards, S, Y, c)
+    print(f'[1] Loss: {loss.item()}')
     assert loss.item() == 0.6782951951026917
 
     c = torch.tensor([1.0])
 
     loss = loss_function(hazards, S, Y, c)
+    print(f'[2] Loss: {loss.item()}')
     assert loss.item() == 0.1732867956161499
+
+    print('Test successful')
+
+
+def test_sct_loss():
+    print('Testing SurvivalClassificationTobitLoss...')
+    loss_function = SurvivalClassificationTobitLoss()
+
+    Y_pred = torch.tensor([0.1, 0.2, 0.7, 0.1]).reshape((1, 4))
+    Y = torch.tensor([2])
+    c = torch.tensor([0.0])
+
+    loss = loss_function(Y_pred, Y, c)
+    print(f'[1] Loss: {loss.item()}')
+
+    c = torch.tensor([1.0])
+
+    loss = loss_function(Y_pred, Y, c)
+    print(f'[2] Loss: {loss.item()}')
+
+    Y_pred = torch.tensor([0.1, 0.2, 0.7, 0.1]).reshape((1, 4))
+    Y = torch.tensor([0])
+    c = torch.tensor([0.0])
+
+    loss = loss_function(Y_pred, Y, c)
+    print(f'[3] Loss: {loss.item()}')
+
+    c = torch.tensor([1.0])
+
+    loss = loss_function(Y_pred, Y, c)
+    print(f'[4] Loss: {loss.item()}')
 
     print('Test successful')

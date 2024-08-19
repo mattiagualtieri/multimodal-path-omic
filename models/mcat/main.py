@@ -9,7 +9,7 @@ import torch.nn as nn
 
 from torch.utils.data import DataLoader, random_split
 from sksurv.metrics import concordance_index_censored
-from models.loss import CrossEntropySurvivalLoss
+from models.loss import CrossEntropySurvivalLoss, SurvivalClassificationTobitLoss
 from mcat import MultimodalCoAttentionTransformer
 from dataset.dataset import MultimodalDatasetV2
 
@@ -36,6 +36,8 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
             loss = loss_function(Y, survival_class.long())
         elif config['training']['loss'] == 'ces':
             loss = loss_function(hazards, survs, survival_class, c=censorship)
+        elif config['training']['loss'] == 'sct':
+            loss = loss_function(Y, survival_class, c=censorship)
         else:
             raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
         loss_value = loss.item()
@@ -98,7 +100,9 @@ def validate(epoch, config, device, val_loader, model, loss_function):
         if config['training']['loss'] == 'ce':
             loss = loss_function(Y, survival_class.long())
         elif config['training']['loss'] == 'ces':
-            loss = loss_function(hazards, survs, survival_class, c=censorship, alpha=0.0)
+            loss = loss_function(hazards, survs, survival_class, c=censorship)
+        elif config['training']['loss'] == 'sct':
+            loss = loss_function(Y, survival_class, c=censorship)
         else:
             raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
         loss_value = loss.item()
@@ -131,7 +135,9 @@ def wandb_init(config):
             'gradient_acceleration_step': config['training']['grad_acc_step'],
             'epochs': config['training']['epochs'],
             'architecture': config['model']['name'],
-            'fusion': config['model']['fusion']
+            'fusion': config['model']['fusion'],
+            'loss': config['training']['loss'],
+            'dk': config['model']['dk']
         }
     )
 
@@ -181,6 +187,9 @@ def main():
     elif config['training']['loss'] == 'ces':
         print('Using CrossEntropySurvivalLoss during training')
         loss_function = CrossEntropySurvivalLoss()
+    elif config['training']['loss'] == 'sct':
+        print('Using SurvivalClassificationTobitLoss during training')
+        loss_function = SurvivalClassificationTobitLoss()
     else:
         raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
     # Optimizer

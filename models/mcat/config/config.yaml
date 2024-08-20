@@ -14,7 +14,7 @@ model:
   model_size: medium
 training:
   train_size: 0.8
-  loss: sct # ces
+  loss: ces # ces, sct
   epochs: 20
   lr: 0.0001
   weight_decay: 0.00001

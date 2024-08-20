@@ -137,7 +137,7 @@ def wandb_init(config):
             'architecture': config['model']['name'],
             'fusion': config['model']['fusion'],
             'loss': config['training']['loss'],
-            'dk': config['model']['dk']
+            'model_size': config['model']['model_size']
         }
     )
 
@@ -168,10 +168,10 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
     # Model
-    dk = config['model']['dk']
+    model_size = config['model']['model_size']
     omics_sizes = dataset.signature_sizes
     fusion = config['model']['fusion']
-    model = MultimodalCoAttentionTransformer(dk=dk, omic_sizes=omics_sizes, fusion=fusion, device=device)
+    model = MultimodalCoAttentionTransformer(model_size=model_size, omic_sizes=omics_sizes, fusion=fusion, device=device)
     checkpoint_path = config['model']['load_from_checkpoint']
     checkpoint = None
     if checkpoint_path is not None:

@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,14 +10,19 @@ from models.fusion import BilinearFusion, ConcatFusion, GatedConcatFusion
 
 
 class MultimodalCoAttentionTransformer(nn.Module):
-    def __init__(self, omic_sizes: [], dk: int = 256, n_classes: int = 4, dropout: float = 0.25, fusion: str = 'concat', device: str = 'cpu'):
+    def __init__(self, omic_sizes: [], model_size: str = 'medium', n_classes: int = 4, dropout: float = 0.25, fusion: str = 'concat', device: str = 'cpu'):
         super(MultimodalCoAttentionTransformer, self).__init__()
         self.n_classes = n_classes
-        self.dk = dk
+        if model_size == 'small':
+            self.model_sizes = [128, 128]
+        elif model_size == 'medium':
+            self.model_sizes = [256, 256]
+        elif model_size == 'big':
+            self.model_sizes = [512, 512]
 
         # H
         fc = nn.Sequential(
-            nn.Linear(1024, self.dk),
+            nn.Linear(1024, self.model_sizes[0]),
             nn.ReLU(),
             nn.Dropout(dropout)
         )
@@ -29,11 +33,11 @@ class MultimodalCoAttentionTransformer(nn.Module):
         for omic_size in omic_sizes:
             fc = nn.Sequential(
                 nn.Sequential(
-                    nn.Linear(omic_size, self.dk),
+                    nn.Linear(omic_size, self.model_sizes[0]),
                     nn.ELU(),
                     nn.AlphaDropout(p=dropout, inplace=False)),
                 nn.Sequential(
-                    nn.Linear(self.dk, self.dk),
+                    nn.Linear(self.model_sizes[0], self.model_sizes[1]),
                     nn.ELU(),
                     nn.AlphaDropout(p=dropout, inplace=False))
             )
@@ -41,39 +45,41 @@ class MultimodalCoAttentionTransformer(nn.Module):
         self.G = nn.ModuleList(omic_encoders)
 
         # Genomic-Guided Co-Attention
-        self.co_attention = nn.MultiheadAttention(embed_dim=self.dk, num_heads=1)
+        self.co_attention = nn.MultiheadAttention(embed_dim=self.model_sizes[1], num_heads=1)
 
         # Path Transformer (T_H)
-        path_encoder_layer = nn.TransformerEncoderLayer(d_model=self.dk, nhead=8, dim_feedforward=512, dropout=dropout,
+        path_encoder_layer = nn.TransformerEncoderLayer(d_model=self.model_sizes[1], nhead=8, dim_feedforward=512, dropout=dropout,
                                                         activation='relu')
         self.path_transformer = nn.TransformerEncoder(path_encoder_layer, num_layers=2)
 
         # WSI Global Attention Pooling (rho_H)
-        self.path_attention_head = AttentionNetGated(n_classes=1, input_dim=self.dk, hidden_dim=self.dk)
-        self.path_rho = nn.Sequential(*[nn.Linear(self.dk, self.dk), nn.ReLU(), nn.Dropout(dropout)])
+        self.path_attention_head = AttentionNetGated(n_classes=1, input_dim=self.model_sizes[1], hidden_dim=self.model_sizes[1])
+        self.path_rho = nn.Sequential(*[nn.Linear(self.model_sizes[1], self.model_sizes[1]), nn.ReLU(), nn.Dropout(dropout)])
 
         # Omic Transformer (T_G)
-        omic_encoder_layer = nn.TransformerEncoderLayer(d_model=self.dk, nhead=8, dim_feedforward=512, dropout=dropout,
+        omic_encoder_layer = nn.TransformerEncoderLayer(d_model=self.model_sizes[1], nhead=8, dim_feedforward=512, dropout=dropout,
                                                         activation='relu')
         self.omic_transformer = nn.TransformerEncoder(omic_encoder_layer, num_layers=2)
 
         # Genomic Global Attention Pooling (rho_G)
-        self.omic_attention_head = AttentionNetGated(n_classes=1, input_dim=self.dk, hidden_dim=self.dk)
-        self.omic_rho = nn.Sequential(*[nn.Linear(self.dk, self.dk), nn.ReLU(), nn.Dropout(dropout)])
+        self.omic_attention_head = AttentionNetGated(n_classes=1, input_dim=self.model_sizes[1], hidden_dim=self.model_sizes[1])
+        self.omic_rho = nn.Sequential(*[nn.Linear(self.model_sizes[1], self.model_sizes[1]), nn.ReLU(), nn.Dropout(dropout)])
 
         # Fusion Layer
         self.fusion = fusion
         if self.fusion == 'concat':
-            self.fusion_layer = ConcatFusion(dims=[self.dk, self.dk], hidden_size=self.dk, output_size=self.dk, device=device)
+            self.fusion_layer = ConcatFusion(dims=[self.model_sizes[1], self.model_sizes[1]],
+                                             hidden_size=self.model_sizes[1], output_size=self.model_sizes[1], device=device)
         elif self.fusion == 'bilinear':
-            self.fusion_layer = BilinearFusion(dim1=self.dk, dim2=self.dk, output_size=self.dk)
+            self.fusion_layer = BilinearFusion(dim1=self.model_sizes[1], dim2=self.model_sizes[1], output_size=self.model_sizes[1])
         elif self.fusion == 'gated_concat':
-            self.fusion_layer = GatedConcatFusion(dims=[self.dk, self.dk], hidden_size=self.dk, output_size=self.dk, device=device)
+            self.fusion_layer = GatedConcatFusion(dims=[self.model_sizes[1], self.model_sizes[1]],
+                                                  hidden_size=self.model_sizes[1], output_size=self.model_sizes[1], device=device)
         else:
             raise RuntimeError(f'Fusion mechanism {self.fusion} not implemented')
 
         # Classifier
-        self.classifier = nn.Linear(self.dk, n_classes)
+        self.classifier = nn.Linear(self.model_sizes[1], n_classes)
 
     def forward(self, wsi, omics):
         # WSI Fully connected layer
@@ -142,13 +148,17 @@ def test_mcat():
     wsi = torch.randn((3000, 1024))
     omics = [torch.randn(dim) for dim in [100, 200, 300, 400, 500, 600]]
     omic_sizes = [omic.size()[0] for omic in omics]
-    model = MultimodalCoAttentionTransformer(omic_sizes=omic_sizes)
-    hazards, S, Y_hat, attention_scores = model(wsi, omics)
-    assert hazards.shape[0] == S.shape[0] == Y_hat.shape[0] == 1
-    assert hazards.shape[1] == S.shape[1] == Y_hat.shape[1] == 4
-    assert attention_scores['coattn'].shape[0] == len(omic_sizes)
-    assert attention_scores['coattn'].shape[1] == 3000
-    assert attention_scores['path'].shape[0] == attention_scores['omic'].shape[0] == 1
-    assert attention_scores['path'].shape[1] == attention_scores['omic'].shape[1] == len(omic_sizes)
 
-    print('Forward successful')
+    model_sizes = ['small', 'medium', 'big']
+
+    for model_size in model_sizes:
+        print(f'Size {model_size}')
+        model = MultimodalCoAttentionTransformer(omic_sizes=omic_sizes, model_size=model_size)
+        hazards, S, Y_hat, attention_scores = model(wsi, omics)
+        assert hazards.shape[0] == S.shape[0] == Y_hat.shape[0] == 1
+        assert hazards.shape[1] == S.shape[1] == Y_hat.shape[1] == 4
+        assert attention_scores['coattn'].shape[0] == len(omic_sizes)
+        assert attention_scores['coattn'].shape[1] == 3000
+        assert attention_scores['path'].shape[0] == attention_scores['omic'].shape[0] == 1
+        assert attention_scores['path'].shape[1] == attention_scores['omic'].shape[1] == len(omic_sizes)
+        print('Forward successful')

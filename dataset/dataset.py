@@ -53,7 +53,10 @@ class MultimodalDatasetV2(Dataset):
         if self.use_signatures:
             self.signature_sizes = []
             self.signature_data = {}
-            signatures_file = config['dataset']['signatures']
+            if inference:
+                signatures_file = config['inference']['dataset']['signatures']
+            else:
+                signatures_file = config['dataset']['signatures']
             signatures_df = pd.read_csv(signatures_file)
             self.signatures = signatures_df.columns
             for signature_name in self.signatures:

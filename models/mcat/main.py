@@ -130,6 +130,7 @@ def wandb_init(config):
     wandb.init(
         project='MCAT',
         config={
+            'dataset': config['dataset']['name'],
             'learning_rate': config['training']['lr'],
             'weight_decay': config['training']['weight_decay'],
             'gradient_acceleration_step': config['training']['grad_acc_step'],

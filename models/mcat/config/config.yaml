@@ -1,6 +1,7 @@
 device: cuda
 wandb_enabled: True
 dataset:
+  name: TCGA-BRCA
   file: /work/h2020deciderficarra_shared/mgualtieri/brca/brca.csv
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/brca/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv

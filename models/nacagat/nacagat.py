@@ -42,7 +42,9 @@ class NarrowGatingContextualAttentionGateTransformer(nn.Module):
         self.G = nn.ModuleList(omic_encoders)
 
         # Pre-gating and Contextual Attention Gate
-        self.co_attention = PreGatingContextualAttentionGate(dim1=self.model_sizes[1], dim2=self.model_sizes[1], dk=self.model_sizes[1], output_dim=self.model_sizes[1])
+        self.co_attention = PreGatingContextualAttentionGate(dim1=self.model_sizes[1], dim2=self.model_sizes[1],
+                                                             dk=self.model_sizes[1], output_dim=self.model_sizes[1],
+                                                             device=device)
 
         # Path Transformer (T_H)
         path_encoder_layer = nn.TransformerEncoderLayer(d_model=self.model_sizes[1], nhead=8, dim_feedforward=512, dropout=dropout,

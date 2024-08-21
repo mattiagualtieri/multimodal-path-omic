@@ -112,23 +112,42 @@ def test_sct_loss():
     c = torch.tensor([0.0])
 
     loss = loss_function(Y_pred, Y, c)
-    print(f'[1] Loss: {loss.item()}')
+    print(f'[1] Loss: {loss.item()}\t\t(should be low, because uncensored and guessed correctly)')
 
     c = torch.tensor([1.0])
 
     loss = loss_function(Y_pred, Y, c)
-    print(f'[2] Loss: {loss.item()}')
+    print(f'[2] Loss: {loss.item()}\t\t(should be lower than previous, because censored)')
 
     Y_pred = torch.tensor([0.1, 0.2, 0.7, 0.1]).reshape((1, 4))
     Y = torch.tensor([0])
     c = torch.tensor([0.0])
 
     loss = loss_function(Y_pred, Y, c)
-    print(f'[3] Loss: {loss.item()}')
+    print(f'[3] Loss: {loss.item()}\t\t(should be high, because uncensored and not guessed correctly)')
 
     c = torch.tensor([1.0])
 
     loss = loss_function(Y_pred, Y, c)
-    print(f'[4] Loss: {loss.item()}')
+    print(f'[4] Loss: {loss.item()}\t\t(should be lower than previous, because censored)')
+
+    Y_pred = torch.tensor([0.7, 0.2, 0.1, 0.1]).reshape((1, 4))
+    Y = torch.tensor([3])
+    c = torch.tensor([0.0])
+
+    loss = loss_function(Y_pred, Y, c)
+    print(f'[5] Loss: {loss.item()}\t\t(should be high, because uncensored and not guessed correctly)')
+
+    c = torch.tensor([1.0])
+
+    loss = loss_function(Y_pred, Y, c)
+    print(f'[6] Loss: {loss.item()}\t\t(should be the same, because censored and prediction is completely wrong)')
+    
+    Y_pred = torch.tensor([0.7, 0.2, 0.1, 0.1]).reshape((1, 4))
+    Y = torch.tensor([1])
+    c = torch.tensor([1.0])
+
+    loss = loss_function(Y_pred, Y, c)
+    print(f'[7] Loss: {loss.item()}\t\t(should be lower than previous, because censored and guess is not far from label)')
 
     print('Test successful')

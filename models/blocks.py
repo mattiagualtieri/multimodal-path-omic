@@ -42,7 +42,7 @@ class AttentionNetGated(nn.Module):
 
 
 class PreGatingContextualAttentionGate(nn.Module):
-    def __init__(self, dim1: int = 256, dim2: int = 256, dk: int = 256, output_dim: int = 128):
+    def __init__(self, dim1: int = 256, dim2: int = 256, dk: int = 256, output_dim: int = 128, device: str = 'cpu'):
         r"""
         Pre-gating and Contextual Attention Gate (PCAG)
 
@@ -57,18 +57,18 @@ class PreGatingContextualAttentionGate(nn.Module):
         self.dk = dk
         self.output_dim = output_dim
 
-        self.fc_q = nn.Linear(dim2, self.dk)
-        self.fc_k = nn.Linear(dim1, self.dk)
-        self.fc_v = nn.Linear(dim1, self.dk)
+        self.fc_q = nn.Linear(dim2, self.dk).to(device)
+        self.fc_k = nn.Linear(dim1, self.dk).to(device)
+        self.fc_v = nn.Linear(dim1, self.dk).to(device)
 
         self.fc_cag = []
         for i in range(0, 4):
-            fc = nn.Sequential(nn.Linear(self.dk, self.output_dim), nn.ReLU())
+            fc = nn.Sequential(nn.Linear(self.dk, self.output_dim), nn.ReLU()).to(device)
             self.fc_cag.append(fc)
 
-        self.G = nn.Sequential(nn.ReLU(), nn.LayerNorm(self.output_dim))
-        self.E = nn.Sequential(nn.ReLU(), nn.LayerNorm(self.output_dim))
-        self.fc_c = nn.Sequential(nn.Linear(self.output_dim, self.output_dim), nn.ReLU())
+        self.G = nn.Sequential(nn.ReLU(), nn.LayerNorm(self.output_dim)).to(device)
+        self.E = nn.Sequential(nn.ReLU(), nn.LayerNorm(self.output_dim)).to(device)
+        self.fc_c = nn.Sequential(nn.Linear(self.output_dim, self.output_dim), nn.ReLU()).to(device)
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor):
         q = self.fc_q(x2)

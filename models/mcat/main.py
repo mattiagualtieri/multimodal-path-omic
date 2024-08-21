@@ -63,18 +63,19 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
     train_loss /= len(train_loader)
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
     print('Epoch: {}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch + 1, train_loss, c_index))
-    if (epoch + 1) % checkpoint_epoch == 0 and epoch != 0:
-        now = datetime.datetime.now().strftime('%Y%m%d%H%M')
-        filename = f'{config["model"]["name"]}_{epoch + 1}_{now}.pt'
-        checkpoint_dir = config['model']['checkpoint_dir']
-        checkpoint_path = os.path.join(checkpoint_dir, filename)
-        print(f'Saving model into {checkpoint_path}')
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'loss': train_loss,
-        }, checkpoint_path)
+    if checkpoint_epoch > 0:
+        if (epoch + 1) % checkpoint_epoch == 0 and epoch != 0:
+            now = datetime.datetime.now().strftime('%Y%m%d%H%M')
+            filename = f'{config["model"]["name"]}_{epoch + 1}_{now}.pt'
+            checkpoint_dir = config['model']['checkpoint_dir']
+            checkpoint_path = os.path.join(checkpoint_dir, filename)
+            print(f'Saving model into {checkpoint_path}')
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': train_loss,
+            }, checkpoint_path)
     wandb_enabled = config['wandb_enabled']
     if wandb_enabled:
         wandb.log({"train_loss": train_loss, "train_c_index": c_index})

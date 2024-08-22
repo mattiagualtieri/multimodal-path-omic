@@ -10,8 +10,9 @@ from models.fusion import BilinearFusion, ConcatFusion, GatedConcatFusion
 
 
 class MultimodalCoAttentionTransformer(nn.Module):
-    def __init__(self, omic_sizes: [], model_size: str = 'medium', n_classes: int = 4, dropout: float = 0.25, fusion: str = 'concat', device: str = 'cpu'):
+    def __init__(self, omic_sizes: [], model_size: str = 'medium', n_classes: int = 4, dropout: float = 0.25, fusion: str = 'concat', device: str = 'cpu', inference: bool = False):
         super(MultimodalCoAttentionTransformer, self).__init__()
+        self.inference = inference
         self.n_classes = n_classes
         if model_size == 'small':
             self.model_sizes = [128, 128]
@@ -94,7 +95,7 @@ class MultimodalCoAttentionTransformer(nn.Module):
         # Co-Attention results
         # H_coattn: Genomic-Guided WSI-level Embeddings (Nxd_k)
         # A_coattn: Co-Attention Matrix (NxM)
-        H_coattn, A_coattn = self.co_attention(query=G_bag, key=H_bag, value=H_bag)
+        H_coattn, A_coattn = self.co_attention(query=G_bag, key=H_bag, value=H_bag, need_weights=self.inference)
 
         # Set-Based MIL Transformers
         # Attention is permutation-equivariant, so dimensions are the same (Nxd_k)
@@ -141,6 +142,9 @@ class MultimodalCoAttentionTransformer(nn.Module):
 
         return hazards, survs, Y, attention_scores
 
+    def get_trainable_parameters(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
 
 def test_mcat():
     print('Testing MultimodalCoAttentionTransformer...')
@@ -153,7 +157,7 @@ def test_mcat():
 
     for model_size in model_sizes:
         print(f'Size {model_size}')
-        model = MultimodalCoAttentionTransformer(omic_sizes=omic_sizes, model_size=model_size)
+        model = MultimodalCoAttentionTransformer(omic_sizes=omic_sizes, model_size=model_size, inference=True)
         hazards, S, Y_hat, attention_scores = model(wsi, omics)
         assert hazards.shape[0] == S.shape[0] == Y_hat.shape[0] == 1
         assert hazards.shape[1] == S.shape[1] == Y_hat.shape[1] == 4
@@ -162,3 +166,13 @@ def test_mcat():
         assert attention_scores['path'].shape[0] == attention_scores['omic'].shape[0] == 1
         assert attention_scores['path'].shape[1] == attention_scores['omic'].shape[1] == len(omic_sizes)
         print('Forward successful')
+
+    print('Testing non-inference')
+    model = MultimodalCoAttentionTransformer(omic_sizes=omic_sizes, model_size=model_sizes[0], inference=False)
+    hazards, S, Y_hat, attention_scores = model(wsi, omics)
+    assert hazards.shape[0] == S.shape[0] == Y_hat.shape[0] == 1
+    assert hazards.shape[1] == S.shape[1] == Y_hat.shape[1] == 4
+    assert attention_scores['coattn'] is None
+    assert attention_scores['path'].shape[0] == attention_scores['omic'].shape[0] == 1
+    assert attention_scores['path'].shape[1] == attention_scores['omic'].shape[1] == len(omic_sizes)
+    print('Forward successful')

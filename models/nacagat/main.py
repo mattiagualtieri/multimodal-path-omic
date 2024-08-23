@@ -173,7 +173,9 @@ def main():
     model_size = config['model']['model_size']
     omics_sizes = dataset.signature_sizes
     fusion = config['model']['fusion']
+    model_name = config['model']['name']
     model = NarrowGatingContextualAttentionGateTransformer(model_size=model_size, omic_sizes=omics_sizes, fusion=fusion, device=device)
+    print(f'Trainable parameters of {model_name}: {model.get_trainable_parameters()}')
     checkpoint_path = config['model']['load_from_checkpoint']
     checkpoint = None
     if checkpoint_path is not None:

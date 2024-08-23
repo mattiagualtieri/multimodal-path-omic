@@ -140,6 +140,9 @@ class NarrowGatingContextualAttentionGateTransformer(nn.Module):
 
         return hazards, survs, Y, attention_scores
 
+    def get_trainable_parameters(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
 
 def test_nacagat():
     print('Testing NarrowGatingContextualAttentionGateTransformer...')

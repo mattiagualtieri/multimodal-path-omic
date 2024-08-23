@@ -41,6 +41,52 @@ class AttentionNetGated(nn.Module):
         return A, x
 
 
+class PreGatedAttention(nn.Module):
+    def __init__(self, dim1: int = 256, dim2: int = 256, dk: int = 256, device: str = 'cpu'):
+        super(PreGatedAttention, self).__init__()
+        self.dk = dk
+        self.fc_Q = nn.Linear(dim2, self.dk).to(device)
+        self.fc_K = nn.Linear(dim1, self.dk).to(device)
+        self.fc_V = nn.Linear(dim1, self.dk).to(device)
+
+    def forward(self, x1: torch.Tensor, x2: torch.Tensor):
+        Q = self.fc_Q(x2)
+        K = self.fc_K(x1)
+        V = self.fc_V(x1)
+
+        QK = torch.matmul(Q, K.transpose(-2, -1))
+        P = (torch.matmul(torch.tanh(Q), torch.tanh(K.transpose(-2, -1))) + 1) / 2
+        scores = (QK * P) / torch.sqrt(torch.tensor(self.dk, dtype=torch.float32))
+        attention_weights = torch.softmax(scores, dim=-1)
+        Q_hat = torch.matmul(attention_weights, V)
+
+        return Q, Q_hat, attention_weights
+
+
+class ContextualAttentionGate(nn.Module):
+    def __init__(self, dim: int = 256, hidden_dim: int = 128, device: str = 'cpu'):
+        super(ContextualAttentionGate, self).__init__()
+        # FC Layer for Q
+        self.fc1 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ReLU()).to(device)
+        # First FC Layer for Q_hat
+        self.fc2 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ReLU()).to(device)
+        # Second FC Layer for Q_hat
+        self.fc3 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ReLU()).to(device)
+
+        self.G = nn.Sequential(nn.ReLU(), nn.LayerNorm(hidden_dim)).to(device)
+        self.E = nn.Sequential(nn.ReLU(), nn.LayerNorm(hidden_dim)).to(device)
+
+        self.fc_c = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU()).to(device)
+
+    def forward(self, Q: torch.Tensor, Q_hat: torch.Tensor):
+        G = self.G(self.fc1(Q) + self.fc2(Q_hat))
+        E = self.E(self.fc3(Q_hat))
+        C = G * E
+        C = self.fc_c(C)
+
+        return C
+
+
 class PreGatingContextualAttentionGate(nn.Module):
     def __init__(self, dim1: int = 256, dim2: int = 256, dk: int = 256, output_dim: int = 128, device: str = 'cpu'):
         r"""
@@ -57,38 +103,19 @@ class PreGatingContextualAttentionGate(nn.Module):
         self.dk = dk
         self.output_dim = output_dim
 
-        self.fc_q = nn.Linear(dim2, self.dk).to(device)
-        self.fc_k = nn.Linear(dim1, self.dk).to(device)
-        self.fc_v = nn.Linear(dim1, self.dk).to(device)
+        self.pg_coattn = PreGatedAttention(dim1=dim1, dim2=dim2, dk=self.dk)
 
-        self.fc_cag = []
-        for i in range(0, 4):
-            fc = nn.Sequential(nn.Linear(self.dk, self.output_dim), nn.ReLU()).to(device)
-            self.fc_cag.append(fc)
+        self.CAG = ContextualAttentionGate(dim=self.dk, hidden_dim=self.output_dim, device=device)
 
-        self.G = nn.Sequential(nn.ReLU(), nn.LayerNorm(self.output_dim)).to(device)
-        self.E = nn.Sequential(nn.ReLU(), nn.LayerNorm(self.output_dim)).to(device)
-        self.fc_c = nn.Sequential(nn.Linear(self.output_dim, self.output_dim), nn.ReLU()).to(device)
+        self.final_fc = nn.Sequential(nn.Linear(self.dk, self.output_dim), nn.ReLU()).to(device)
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor):
-        q = self.fc_q(x2)
-        k = self.fc_k(x1)
-        v = self.fc_v(x1)
+        Q, Q_hat, attention_weights = self.pg_coattn(x1, x2)
 
-        qk = torch.matmul(q, k.transpose(-2, -1))
-        p = (torch.matmul(torch.tanh(q), torch.tanh(k.transpose(-2, -1))) + 1) / 2
-        scores = (qk * p) / torch.sqrt(torch.tensor(self.dk, dtype=torch.float32))
-        attention_weights = torch.softmax(scores, dim=-1)
-        q_hat = torch.matmul(attention_weights, v)
+        C = self.CAG(Q, Q_hat)
+        Q = self.final_fc(Q)
 
-        g = self.G(self.fc_cag[0](q) + self.fc_cag[1](q_hat))
-        e = self.E(self.fc_cag[2](q_hat))
-        c = g * e
-
-        c = self.fc_c(c)
-        q = self.fc_cag[3](q)
-
-        return q + c, attention_weights
+        return Q + C, attention_weights
 
 
 def test_pcag():

@@ -56,7 +56,7 @@ def main():
     model_size = config['model']['model_size']
     omics_sizes = dataset.signature_sizes
     fusion = config['model']['fusion']
-    model = MultimodalCoAttentionTransformer(model_size=model_size, omic_sizes=omics_sizes, fusion=fusion, device=device)
+    model = MultimodalCoAttentionTransformer(model_size=model_size, omic_sizes=omics_sizes, fusion=fusion, device=device, inference=True)
     checkpoint_path = config['inference']['model']['load_from_checkpoint']
     if checkpoint_path is None:
         raise RuntimeError('No checkpoint specified')

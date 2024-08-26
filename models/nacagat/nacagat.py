@@ -6,9 +6,9 @@ from models.blocks import AttentionNetGated, PreGatingContextualAttentionGate
 from models.fusion import BilinearFusion, ConcatFusion, GatedConcatFusion
 
 
-class NarrowGatingContextualAttentionGateTransformer(nn.Module):
+class NarrowContextualAttentionGateTransformer(nn.Module):
     def __init__(self, omic_sizes: [], model_size: str = 'medium', n_classes: int = 4, dropout: float = 0.25, fusion: str = 'concat', device: str = 'cpu'):
-        super(NarrowGatingContextualAttentionGateTransformer, self).__init__()
+        super(NarrowContextualAttentionGateTransformer, self).__init__()
         self.n_classes = n_classes
         if model_size == 'small':
             self.model_sizes = [128, 128]
@@ -43,8 +43,7 @@ class NarrowGatingContextualAttentionGateTransformer(nn.Module):
 
         # Pre-gating and Contextual Attention Gate
         self.co_attention = PreGatingContextualAttentionGate(dim1=self.model_sizes[1], dim2=self.model_sizes[1],
-                                                             dk=self.model_sizes[1], output_dim=self.model_sizes[1],
-                                                             device=device)
+                                                             dk=self.model_sizes[1], output_dim=self.model_sizes[1]).to(device=device)
 
         # Path Transformer (T_H)
         path_encoder_layer = nn.TransformerEncoderLayer(d_model=self.model_sizes[1], nhead=8, dim_feedforward=512, dropout=dropout,
@@ -68,12 +67,12 @@ class NarrowGatingContextualAttentionGateTransformer(nn.Module):
         self.fusion = fusion
         if self.fusion == 'concat':
             self.fusion_layer = ConcatFusion(dims=[self.model_sizes[1], self.model_sizes[1]],
-                                             hidden_size=self.model_sizes[1], output_size=self.model_sizes[1], device=device)
+                                             hidden_size=self.model_sizes[1], output_size=self.model_sizes[1]).to(device=device)
         elif self.fusion == 'bilinear':
             self.fusion_layer = BilinearFusion(dim1=self.model_sizes[1], dim2=self.model_sizes[1], output_size=self.model_sizes[1])
         elif self.fusion == 'gated_concat':
             self.fusion_layer = GatedConcatFusion(dims=[self.model_sizes[1], self.model_sizes[1]],
-                                                  hidden_size=self.model_sizes[1], output_size=self.model_sizes[1], device=device)
+                                                  hidden_size=self.model_sizes[1], output_size=self.model_sizes[1]).to(device=device)
         else:
             raise RuntimeError(f'Fusion mechanism {self.fusion} not implemented')
 
@@ -155,7 +154,7 @@ def test_nacagat():
 
     for model_size in model_sizes:
         print(f'Size {model_size}')
-        model = NarrowGatingContextualAttentionGateTransformer(omic_sizes=omic_sizes, model_size=model_size)
+        model = NarrowContextualAttentionGateTransformer(omic_sizes=omic_sizes, model_size=model_size)
         hazards, S, Y_hat, attention_scores = model(wsi, omics)
         assert hazards.shape[0] == S.shape[0] == Y_hat.shape[0] == 1
         assert hazards.shape[1] == S.shape[1] == Y_hat.shape[1] == 4

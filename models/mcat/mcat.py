@@ -70,12 +70,12 @@ class MultimodalCoAttentionTransformer(nn.Module):
         self.fusion = fusion
         if self.fusion == 'concat':
             self.fusion_layer = ConcatFusion(dims=[self.model_sizes[1], self.model_sizes[1]],
-                                             hidden_size=self.model_sizes[1], output_size=self.model_sizes[1], device=device)
+                                             hidden_size=self.model_sizes[1], output_size=self.model_sizes[1]).to(device=device)
         elif self.fusion == 'bilinear':
             self.fusion_layer = BilinearFusion(dim1=self.model_sizes[1], dim2=self.model_sizes[1], output_size=self.model_sizes[1])
         elif self.fusion == 'gated_concat':
             self.fusion_layer = GatedConcatFusion(dims=[self.model_sizes[1], self.model_sizes[1]],
-                                                  hidden_size=self.model_sizes[1], output_size=self.model_sizes[1], device=device)
+                                                  hidden_size=self.model_sizes[1], output_size=self.model_sizes[1]).to(device=device)
         else:
             raise RuntimeError(f'Fusion mechanism {self.fusion} not implemented')
 

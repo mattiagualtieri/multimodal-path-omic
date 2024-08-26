@@ -1,16 +1,16 @@
 device: cuda
 wandb_enabled: True
 dataset:
-  name: TCGA-BRCA
-  file: /work/h2020deciderficarra_shared/mgualtieri/brca/brca.csv
-  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/brca/slides/
+  name: TCGA-BLCA
+  file: /work/h2020deciderficarra_shared/mgualtieri/blca/blca.csv
+  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/blca/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
 model:
   name: MCAT
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt
   checkpoint_epoch: 0 # 0 if saving is not necessary
   checkpoint_dir: checkpoints/
-  fusion: gated_concat # concat, gated_concat, bilinear
+  fusion: concat # concat, gated_concat, bilinear
   model_size: medium
 training:
   train_size: 0.8
@@ -20,7 +20,7 @@ training:
   weight_decay: 0.00001
   grad_acc_step: 32
 inference:
-  attention_file: attention_outputs/attention.pt
+  attention_file: attention_outputs/ATTN_TCGA-A2-A0EY-01Z-00-DX1.2F2428B3-0767-48E0-AC22-443C244CBD16.pt
   dataset:
     file: ../../input/inference/brca.csv
     patches_dir: ../../input/inference/

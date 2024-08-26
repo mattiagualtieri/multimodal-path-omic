@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.functional as F
 
 
 class AttentionNetGated(nn.Module):
@@ -42,12 +41,13 @@ class AttentionNetGated(nn.Module):
 
 
 class PreGatedAttention(nn.Module):
-    def __init__(self, dim1: int = 256, dim2: int = 256, dk: int = 256, device: str = 'cpu'):
+    def __init__(self, dim1: int = 256, dim2: int = 256, dk: int = 256):
         super(PreGatedAttention, self).__init__()
         self.dk = dk
-        self.fc_Q = nn.Linear(dim2, self.dk).to(device)
-        self.fc_K = nn.Linear(dim1, self.dk).to(device)
-        self.fc_V = nn.Linear(dim1, self.dk).to(device)
+        self.scale = 1 / torch.sqrt(torch.tensor(dk, dtype=torch.float32))
+        self.fc_Q = nn.Linear(dim2, self.dk)
+        self.fc_K = nn.Linear(dim1, self.dk)
+        self.fc_V = nn.Linear(dim1, self.dk)
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor):
         Q = self.fc_Q(x2)
@@ -56,7 +56,7 @@ class PreGatedAttention(nn.Module):
 
         QK = torch.matmul(Q, K.transpose(-2, -1))
         P = (torch.matmul(torch.tanh(Q), torch.tanh(K.transpose(-2, -1))) + 1) / 2
-        scores = (QK * P) / torch.sqrt(torch.tensor(self.dk, dtype=torch.float32))
+        scores = (QK * P) / self.scale
         attention_weights = torch.softmax(scores, dim=-1)
         Q_hat = torch.matmul(attention_weights, V)
 
@@ -64,31 +64,31 @@ class PreGatedAttention(nn.Module):
 
 
 class ContextualAttentionGate(nn.Module):
-    def __init__(self, dim: int = 256, hidden_dim: int = 128, device: str = 'cpu'):
+    def __init__(self, dim: int = 256, hidden_dim: int = 128):
         super(ContextualAttentionGate, self).__init__()
         # FC Layer for Q
-        self.fc1 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ReLU()).to(device)
+        self.fc1 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ReLU())
         # First FC Layer for Q_hat
-        self.fc2 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ReLU()).to(device)
+        self.fc2 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ReLU())
         # Second FC Layer for Q_hat
-        self.fc3 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ReLU()).to(device)
+        self.fc3 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ReLU())
 
-        self.G = nn.Sequential(nn.ReLU(), nn.LayerNorm(hidden_dim)).to(device)
-        self.E = nn.Sequential(nn.ReLU(), nn.LayerNorm(hidden_dim)).to(device)
+        self.G = nn.Sequential(nn.ReLU(), nn.LayerNorm(hidden_dim))
+        self.E = nn.Sequential(nn.ReLU(), nn.LayerNorm(hidden_dim))
 
-        self.fc_c = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU()).to(device)
+        self.fc_c = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU())
 
     def forward(self, Q: torch.Tensor, Q_hat: torch.Tensor):
-        G = self.G(self.fc1(Q) + self.fc2(Q_hat))
+        G = self.G(self.fc1(Q).add_(self.fc2(Q_hat)))
         E = self.E(self.fc3(Q_hat))
-        C = G * E
+        C = G.mul_(E)
         C = self.fc_c(C)
 
         return C
 
 
 class PreGatingContextualAttentionGate(nn.Module):
-    def __init__(self, dim1: int = 256, dim2: int = 256, dk: int = 256, output_dim: int = 128, device: str = 'cpu'):
+    def __init__(self, dim1: int = 256, dim2: int = 256, dk: int = 256, output_dim: int = 128):
         r"""
         Pre-gating and Contextual Attention Gate (PCAG)
 
@@ -105,9 +105,9 @@ class PreGatingContextualAttentionGate(nn.Module):
 
         self.pg_coattn = PreGatedAttention(dim1=dim1, dim2=dim2, dk=self.dk)
 
-        self.CAG = ContextualAttentionGate(dim=self.dk, hidden_dim=self.output_dim, device=device)
+        self.CAG = ContextualAttentionGate(dim=self.dk, hidden_dim=self.output_dim)
 
-        self.final_fc = nn.Sequential(nn.Linear(self.dk, self.output_dim), nn.ReLU()).to(device)
+        self.final_fc = nn.Sequential(nn.Linear(self.dk, self.output_dim), nn.ReLU())
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor):
         Q, Q_hat, attention_weights = self.pg_coattn(x1, x2)
@@ -116,6 +116,45 @@ class PreGatingContextualAttentionGate(nn.Module):
         Q = self.final_fc(Q)
 
         return Q + C, attention_weights
+
+
+def test_pga():
+    print('Testing PreGatedAttention...')
+
+    x1 = torch.randn((4, 4))
+    x2 = torch.randn((2, 4))
+
+    block = PreGatedAttention(dim1=4, dim2=4, dk=4)
+
+    Q, Q_hat, attention_weights = block(x1, x2)
+
+    assert Q.shape[0] == Q_hat.shape[0] == attention_weights.shape[0] == 2
+    assert Q_hat.shape[1] == Q_hat.shape[1] == attention_weights.shape[1] == 4
+
+    print('Forward successful')
+
+
+def test_cag():
+    print('Testing ContextualAttentionGate...')
+
+    x1 = torch.randn((8, 256))
+    x2 = torch.randn((8, 256))
+
+    block = ContextualAttentionGate(hidden_dim=256)
+
+    C = block(x1, x2)
+
+    assert C.shape[0] == 8
+    assert C.shape[1] == 256
+
+    block = ContextualAttentionGate(hidden_dim=128)
+
+    C = block(x1, x2)
+
+    assert C.shape[0] == 8
+    assert C.shape[1] == 128
+
+    print('Forward successful')
 
 
 def test_pcag():

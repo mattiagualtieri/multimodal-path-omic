@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from sksurv.metrics import concordance_index_censored
 from models.loss import CrossEntropySurvivalLoss, SurvivalClassificationTobitLoss
-from nacagat import NarrowGatingContextualAttentionGateTransformer
+from nacagat import NarrowContextualAttentionGateTransformer
 from dataset.dataset import MultimodalDatasetV2
 
 
@@ -174,7 +174,7 @@ def main():
     omics_sizes = dataset.signature_sizes
     fusion = config['model']['fusion']
     model_name = config['model']['name']
-    model = NarrowGatingContextualAttentionGateTransformer(model_size=model_size, omic_sizes=omics_sizes, fusion=fusion, device=device)
+    model = NarrowContextualAttentionGateTransformer(model_size=model_size, omic_sizes=omics_sizes, fusion=fusion, device=device)
     print(f'Trainable parameters of {model_name}: {model.get_trainable_parameters()}')
     checkpoint_path = config['model']['load_from_checkpoint']
     checkpoint = None

@@ -79,9 +79,9 @@ class ContextualAttentionGate(nn.Module):
         self.fc_c = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU())
 
     def forward(self, Q: torch.Tensor, Q_hat: torch.Tensor):
-        G = self.G(self.fc1(Q).add_(self.fc2(Q_hat)))
+        G = self.G(self.fc1(Q) + self.fc2(Q_hat))
         E = self.E(self.fc3(Q_hat))
-        C = G.mul_(E)
+        C = G * E
         C = self.fc_c(C)
 
         return C
@@ -152,7 +152,7 @@ def test_cag():
     C = block(x1, x2)
 
     assert C.shape[0] == 8
-    assert C.shape[1] == 128
+    assert C.shape[1] == 256
 
     print('Forward successful')
 

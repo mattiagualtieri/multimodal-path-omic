@@ -17,7 +17,7 @@ training:
   loss: ces # ces, sct
   epochs: 20
   lr: 0.0001
-  weight_decay: 0.00001
+  weight_decay: 0.00002
   grad_acc_step: 32
 inference:
   attention_file: attention_outputs/ATTN_TCGA-A2-A0EY-01Z-00-DX1.2F2428B3-0767-48E0-AC22-443C244CBD16.pt

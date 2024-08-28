@@ -1,7 +1,7 @@
 device: cuda
-wandb_enabled: False
+wandb_enabled: True
 dataset:
-  name: TCGA-BLCA
+  name: TCGA-OV
   file: /work/h2020deciderficarra_shared/mgualtieri/ov/ov.csv
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv

@@ -1,9 +1,9 @@
 device: cuda
-wandb_enabled: True
+wandb_enabled: False
 dataset:
   name: TCGA-BLCA
-  file: /work/h2020deciderficarra_shared/mgualtieri/blca/blca.csv
-  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/blca/slides/
+  file: /work/h2020deciderficarra_shared/mgualtieri/ov/ov.csv
+  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
 model:
   name: MCAT
@@ -17,7 +17,7 @@ training:
   loss: ces # ces, sct
   epochs: 20
   lr: 0.0001
-  weight_decay: 0.00002
+  weight_decay: 0.00001
   grad_acc_step: 32
 inference:
   attention_file: attention_outputs/ATTN_TCGA-A2-A0EY-01Z-00-DX1.2F2428B3-0767-48E0-AC22-443C244CBD16.pt

@@ -1,7 +1,7 @@
-device: cuda
+device: cpu
 wandb_enabled: True
 dataset:
-  name: TCGA-BLCA
+  name: TCGA-OV
   file: /work/h2020deciderficarra_shared/mgualtieri/ov/ov.csv
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
@@ -14,9 +14,9 @@ model:
   model_size: medium
 training:
   train_size: 0.8
-  loss: ces # ces, sct
+  loss: sct # ces, sct
   epochs: 20
-  lr: 0.0001
+  lr: 0.0002
   weight_decay: 0.00001
   grad_acc_step: 32
 inference:

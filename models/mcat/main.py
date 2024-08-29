@@ -50,7 +50,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
         train_loss += loss_value
 
         if (batch_index + 1) % 32 == 0:
-            print('\tbatch: {}, loss: {:.4f}, label: {}, survival_months: {}, risk: {:.4f}'.format(
+            print('\tbatch: {}, loss: {:.4f}, label: {}, survival_months: {:.2f}, risk: {:.4f}'.format(
                 batch_index, loss_value, survival_class.item(), survival_months.item(), float(risk.item())))
         loss = loss / grad_acc_step
         loss.backward()

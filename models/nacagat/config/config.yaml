@@ -8,7 +8,7 @@ dataset:
 model:
   name: NaCAGAT
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt
-  checkpoint_epoch: 0 # 0 if saving is not necessary
+  checkpoint_epoch: 0  # 0 if saving is not necessary
   checkpoint_dir: checkpoints/
   fusion: concat # concat, gated_concat, bilinear
   model_size: medium

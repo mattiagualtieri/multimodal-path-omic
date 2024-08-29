@@ -7,7 +7,7 @@ from scipy import stats
 
 
 class MultimodalDatasetV2(Dataset):
-    def __init__(self, file, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, inference=False):
+    def __init__(self, file, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, inference=False, normalize=True):
         self.data = pd.read_csv(file)
         survival_class, _ = pd.qcut(self.data['survival_months'], q=4, retbins=True, labels=False)
         self.data['survival_class'] = survival_class
@@ -38,6 +38,8 @@ class MultimodalDatasetV2(Dataset):
             sort_idx = np.argsort(mad)[-top_rnaseq:]
             self.rnaseq = rnaseq[rnaseq.columns[sort_idx]]
         self.rnaseq_size = len(self.rnaseq.columns)
+        if normalize:
+            self.rnaseq = 2 * (self.rnaseq - self.rnaseq.min()) / (self.rnaseq.max() - self.rnaseq.min()) - 1
         print(f'RNA data size: {self.rnaseq_size}')
         # CNV
         self.cnv = self.data.iloc[:, self.data.columns.str.endswith('_cnv')].astype(float)

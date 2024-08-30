@@ -182,8 +182,10 @@ def main():
         print(f'Loading model checkpoint from {checkpoint_path}')
         checkpoint = torch.load(checkpoint_path)
         model.load_state_dict(checkpoint['model_state_dict'])
-    # model = nn.DataParallel(model)
+    if device == 'cuda' and torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model)
     model.to(device=device)
+    print(model)
     # Loss function
     if config['training']['loss'] == 'ce':
         print('Using CrossEntropyLoss during training')

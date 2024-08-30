@@ -132,6 +132,7 @@ def wandb_init(config):
         project='NaCAGAT',
         config={
             'dataset': config['dataset']['name'],
+            'optimizer': config['training']['optimizer'],
             'learning_rate': config['training']['lr'],
             'weight_decay': config['training']['weight_decay'],
             'gradient_acceleration_step': config['training']['grad_acc_step'],
@@ -205,7 +206,7 @@ def main():
     if optimizer_name == 'rms':
         optimizer = torch.optim.rmsprop.RMSprop(filter(lambda p: p.requires_grad, model.parameters()),
                                                 lr=lr, weight_decay=weight_decay)
-    if optimizer_name == 'adamax':
+    elif optimizer_name == 'adamax':
         optimizer = torch.optim.adamax.Adamax(filter(lambda p: p.requires_grad, model.parameters()),
                                               lr=lr, weight_decay=weight_decay)
     else:

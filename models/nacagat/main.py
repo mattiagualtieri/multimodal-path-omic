@@ -182,7 +182,7 @@ def main():
         print(f'Loading model checkpoint from {checkpoint_path}')
         checkpoint = torch.load(checkpoint_path)
         model.load_state_dict(checkpoint['model_state_dict'])
-    model = nn.DataParallel(model)
+    # model = nn.DataParallel(model)
     model.to(device=device)
     # Loss function
     if config['training']['loss'] == 'ce':

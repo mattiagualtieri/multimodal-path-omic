@@ -2,22 +2,22 @@ device: cpu
 wandb_enabled: True
 dataset:
   name: TCGA-OV
-  file: ../../input/ov/ov.csv # /work/h2020deciderficarra_shared/mgualtieri/ov/ov.csv
-  patches_dir: ../../input/ov/patches/ # /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
-  signatures: ../../input/signatures.csv # /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
+  file: /work/h2020deciderficarra_shared/mgualtieri/ov/ov.csv
+  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
+  signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
 model:
   name: NaCAGAT
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt
-  checkpoint_epoch: 0 # 0 if saving is not necessary
+  checkpoint_epoch: 0  # 0 if saving is not necessary
   checkpoint_dir: checkpoints/
   fusion: concat # concat, gated_concat, bilinear
-  model_size: medium # small, medium, big
+  model_size: small
 training:
   train_size: 0.8
   loss: ces # ces, sct
-  epochs: 20
-  lr: 0.0002
-  weight_decay: 0.00001
+  epochs: 50
+  lr: 0.0001 # 0.0002
+  weight_decay: 0.00001 # 0.00001
   grad_acc_step: 32
 inference:
   attention_file: attention_outputs/ATTN_TCGA-A2-A0EY-01Z-00-DX1.2F2428B3-0767-48E0-AC22-443C244CBD16.pt

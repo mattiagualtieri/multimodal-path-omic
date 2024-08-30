@@ -67,16 +67,16 @@ class ContextualAttentionGate(nn.Module):
     def __init__(self, dim: int = 256, hidden_dim: int = 128):
         super(ContextualAttentionGate, self).__init__()
         # FC Layer for Q
-        self.fc1 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ELU())
         # First FC Layer for Q_hat
-        self.fc2 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ReLU())
+        self.fc2 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ELU())
         # Second FC Layer for Q_hat
-        self.fc3 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ReLU())
+        self.fc3 = nn.Sequential(nn.Linear(dim, hidden_dim), nn.ELU())
 
-        self.G = nn.Sequential(nn.ReLU(), nn.LayerNorm(hidden_dim))
-        self.E = nn.Sequential(nn.ReLU(), nn.LayerNorm(hidden_dim))
+        self.G = nn.Sequential(nn.ELU(), nn.LayerNorm(hidden_dim))
+        self.E = nn.Sequential(nn.ELU(), nn.LayerNorm(hidden_dim))
 
-        self.fc_c = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU())
+        self.fc_c = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ELU())
 
     def forward(self, Q: torch.Tensor, Q_hat: torch.Tensor):
         G = self.G(self.fc1(Q) + self.fc2(Q_hat))

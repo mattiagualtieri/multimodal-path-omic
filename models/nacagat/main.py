@@ -186,7 +186,6 @@ def main():
     if device == 'cuda' and torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
     model.to(device=device)
-    print(model)
     # Loss function
     if config['training']['loss'] == 'ce':
         print('Using CrossEntropyLoss during training')
@@ -204,11 +203,11 @@ def main():
     weight_decay = config['training']['weight_decay']
     optimizer_name = config['training']['optimizer']
     if optimizer_name == 'rms':
-        optimizer = torch.optim.rmsprop.RMSprop(filter(lambda p: p.requires_grad, model.parameters()),
-                                                lr=lr, weight_decay=weight_decay)
+        optimizer = torch.optim.RMSprop(filter(lambda p: p.requires_grad, model.parameters()),
+                                        lr=lr, weight_decay=weight_decay)
     elif optimizer_name == 'adamax':
-        optimizer = torch.optim.adamax.Adamax(filter(lambda p: p.requires_grad, model.parameters()),
-                                              lr=lr, weight_decay=weight_decay)
+        optimizer = torch.optim.Adamax(filter(lambda p: p.requires_grad, model.parameters()),
+                                       lr=lr, weight_decay=weight_decay)
     else:
         optimizer_name = 'adam'
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),

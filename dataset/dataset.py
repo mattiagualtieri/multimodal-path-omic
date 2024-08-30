@@ -7,7 +7,7 @@ from scipy import stats
 
 
 class MultimodalDatasetV2(Dataset):
-    def __init__(self, file, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, inference=False, normalize=False):
+    def __init__(self, file, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, inference=False, normalize=True):
         self.data = pd.read_csv(file)
         survival_class, _ = pd.qcut(self.data['survival_months'], q=4, retbins=True, labels=False)
         self.data['survival_class'] = survival_class

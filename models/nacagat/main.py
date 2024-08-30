@@ -201,8 +201,19 @@ def main():
     # Optimizer
     lr = config['training']['lr']
     weight_decay = config['training']['weight_decay']
-    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
-                                 lr=lr, weight_decay=weight_decay)
+    optimizer_name = config['training']['optimizer']
+    if optimizer_name == 'rms':
+        optimizer = torch.optim.rmsprop.RMSprop(filter(lambda p: p.requires_grad, model.parameters()),
+                                                lr=lr, weight_decay=weight_decay)
+    if optimizer_name == 'adamax':
+        optimizer = torch.optim.adamax.Adamax(filter(lambda p: p.requires_grad, model.parameters()),
+                                              lr=lr, weight_decay=weight_decay)
+    else:
+        optimizer_name = 'adam'
+        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
+                                     lr=lr, weight_decay=weight_decay)
+    print(f'Using optimizer: {optimizer_name}')
+
     starting_epoch = 0
     if checkpoint_path is not None:
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])

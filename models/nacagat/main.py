@@ -202,9 +202,9 @@ def main():
     lr = config['training']['lr']
     weight_decay = config['training']['weight_decay']
     optimizer_name = config['training']['optimizer']
-    if optimizer_name == 'rms':
-        optimizer = torch.optim.RMSprop(filter(lambda p: p.requires_grad, model.parameters()),
-                                        lr=lr, weight_decay=weight_decay)
+    if optimizer_name == 'adadelta':
+        optimizer = torch.optim.Adadelta(filter(lambda p: p.requires_grad, model.parameters()),
+                                         lr=lr, weight_decay=weight_decay)
     elif optimizer_name == 'adamax':
         optimizer = torch.optim.Adamax(filter(lambda p: p.requires_grad, model.parameters()),
                                        lr=lr, weight_decay=weight_decay)

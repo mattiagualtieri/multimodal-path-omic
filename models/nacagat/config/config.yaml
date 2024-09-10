@@ -2,8 +2,8 @@ device: cuda
 wandb_enabled: True
 dataset:
   name: TCGA-LUAD
-  file: /work/h2020deciderficarra_shared/mgualtieri/luad/luad.csv
-  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/luad/slides/
+  file: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/dataset/luad/luad.csv
+  patches_dir: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/dataset/luad/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
 model:
   name: NaCAGAT

@@ -30,6 +30,14 @@ class MultimodalDatasetV2(Dataset):
             self.data.reset_index(drop=True, inplace=True)
             print(f'Remaining samples after removing incomplete: {len(self.data)}')
 
+        # SLIDES
+        self.slides = {}
+        for slide in self.data['slide_id']:
+            slide_name = slide.replace('.svs', '.pt')
+            if os.path.exists(os.path.join(self.patches_dir, slide_name)):
+                patches_embeddings = torch.load(os.path.join(self.patches_dir, slide_name))
+                self.slides[slide_name] = patches_embeddings
+
         # RNA
         self.rnaseq = self.data.iloc[:, self.data.columns.str.endswith('_rnaseq')].astype(float)
         if top_rnaseq is not None:
@@ -80,7 +88,8 @@ class MultimodalDatasetV2(Dataset):
         censorship = self.data['censorship'][index]
 
         slide_name = self.data['slide_id'][index].replace('.svs', '.pt')
-        patches_embeddings = torch.load(os.path.join(self.patches_dir, slide_name))
+        # patches_embeddings = torch.load(os.path.join(self.patches_dir, slide_name))
+        patches_embeddings = self.slides[slide_name]
 
         if not self.use_signatures:
             rnaseq = self.rnaseq.iloc[index].values

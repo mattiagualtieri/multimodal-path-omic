@@ -22,15 +22,23 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
     risk_scores = np.zeros((len(train_loader)))
     censorships = np.zeros((len(train_loader)))
     event_times = np.zeros((len(train_loader)))
+    start_dataload_time = time.time()
+    total_dataload_time = 0.0
+    total_forward_time = 0.0
     for batch_index, (survival_months, survival_class, censorship, omics_data, patches_embeddings) in enumerate(
             train_loader):
+        end_dataload_time = time.time()
+        total_dataload_time += end_dataload_time - start_dataload_time
         survival_months = survival_months.to(device)
         survival_class = survival_class.to(device)
         survival_class = survival_class.unsqueeze(0).to(torch.int64)
         censorship = censorship.type(torch.FloatTensor).to(device)
         patches_embeddings = patches_embeddings.to(device)
         omics_data = [omic_data.to(device) for omic_data in omics_data]
+        start_forward_time = time.time()
         hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
+        end_forward_time = time.time()
+        total_forward_time += end_forward_time - start_forward_time
 
         if config['training']['loss'] == 'ce':
             loss = loss_function(Y, survival_class.long())
@@ -52,12 +60,18 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
         if (batch_index + 1) % 32 == 0:
             print('\tbatch: {}, loss: {:.4f}, label: {}, survival_months: {:.2f}, risk: {:.4f}'.format(
                 batch_index, loss_value, survival_class.item(), survival_months.item(), float(risk.item())))
+            print('\tavg dataload time: {:.2f}'.format(total_dataload_time / 32))
+            total_dataload_time = 0.0
+            print('\tavg forward time: {:.2f}'.format(total_forward_time / 32))
+            total_forward_time = 0.0
         loss = loss / grad_acc_step
         loss.backward()
 
         if (batch_index + 1) % grad_acc_step == 0:
             optimizer.step()
             optimizer.zero_grad()
+
+        start_dataload_time = time.time()
 
     # Calculate loss and error for epoch
     train_loss /= len(train_loader)

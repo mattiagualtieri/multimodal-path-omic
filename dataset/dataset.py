@@ -2,8 +2,10 @@ import torch
 import os
 import pandas as pd
 import numpy as np
+
 from torch.utils.data import Dataset
 from scipy import stats
+from functools import lru_cache
 
 
 class MultimodalDatasetV2(Dataset):
@@ -29,14 +31,6 @@ class MultimodalDatasetV2(Dataset):
             self.data = pd.DataFrame(complete_data_only)
             self.data.reset_index(drop=True, inplace=True)
             print(f'Remaining samples after removing incomplete: {len(self.data)}')
-
-        # SLIDES
-        self.slides = {}
-        for slide in self.data['slide_id']:
-            slide_name = slide.replace('.svs', '.pt')
-            if os.path.exists(os.path.join(self.patches_dir, slide_name)):
-                patches_embeddings = torch.load(os.path.join(self.patches_dir, slide_name))
-                self.slides[slide_name] = patches_embeddings
 
         # RNA
         self.rnaseq = self.data.iloc[:, self.data.columns.str.endswith('_rnaseq')].astype(float)
@@ -82,14 +76,17 @@ class MultimodalDatasetV2(Dataset):
     def __len__(self):
         return len(self.data)
 
+    @lru_cache(maxsize=128)
+    def load_patch_embedding(self, slide_name):
+        return torch.load(os.path.join(self.patches_dir, slide_name))
+
     def __getitem__(self, index):
         survival_months = self.data['survival_months'][index]
         survival_class = self.data['survival_class'][index]
         censorship = self.data['censorship'][index]
 
         slide_name = self.data['slide_id'][index].replace('.svs', '.pt')
-        # patches_embeddings = torch.load(os.path.join(self.patches_dir, slide_name))
-        patches_embeddings = self.slides[slide_name]
+        patches_embeddings = self.load_patch_embedding(slide_name)
 
         if not self.use_signatures:
             rnaseq = self.rnaseq.iloc[index].values

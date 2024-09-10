@@ -55,7 +55,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
             print('\tbatch: {}, loss: {:.4f}, label: {}, survival_months: {:.2f}, risk: {:.4f}'.format(
                 batch_index, loss_value, survival_class.item(), survival_months.item(), float(risk.item())))
             end_batch_time = time.time()
-            print('\t\taverage speed: {:.2f} (seconds per batch)'.format((end_batch_time - start_batch_time) / 32))
+            print('\t\taverage speed: {:.2f}s per batch'.format((end_batch_time - start_batch_time) / 32))
             start_batch_time = time.time()
         loss = loss / grad_acc_step
         loss.backward()

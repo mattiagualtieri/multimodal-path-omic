@@ -6,7 +6,6 @@ import time
 
 from torch.utils.data import Dataset, DataLoader
 from scipy import stats
-from functools import lru_cache
 
 
 class MultimodalDatasetV2(Dataset):
@@ -86,17 +85,13 @@ class MultimodalDatasetV2(Dataset):
     def __len__(self):
         return len(self.data)
 
-    @lru_cache(maxsize=32)
-    def load_patch_embedding(self, slide_name):
-        return torch.load(os.path.join(self.patches_dir, slide_name))
-
     def __getitem__(self, index):
         survival_months = self.survival_months[index]
         survival_class = self.survival_class[index]
         censorship = self.censorship[index]
 
         slide_name = self.data['slide_id'][index].replace('.svs', '.pt')
-        patches_embeddings = self.load_patch_embedding(slide_name)
+        patches_embeddings = torch.load(os.path.join(self.patches_dir, slide_name))
 
         if not self.use_signatures:
             omics_data = {

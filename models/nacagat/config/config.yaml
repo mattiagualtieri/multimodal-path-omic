@@ -1,9 +1,9 @@
-device: cpu
+device: cuda
 wandb_enabled: True
 dataset:
-  name: TCGA-OV
-  file: /work/h2020deciderficarra_shared/mgualtieri/ov/ov.csv
-  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
+  name: TCGA-LUAD
+  file: /work/h2020deciderficarra_shared/mgualtieri/luad/luad.csv
+  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/luad/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
 model:
   name: NaCAGAT
@@ -11,13 +11,13 @@ model:
   checkpoint_epoch: 0  # 0 if saving is not necessary
   checkpoint_dir: checkpoints/
   fusion: concat # concat, gated_concat, bilinear
-  model_size: small
+  model_size: medium
 training:
   train_size: 0.8
   loss: ces # ces, sct
-  epochs: 50
-  optimizer: adamax # adam, adadelta, adamax
-  lr: 0.0001 # 0.0002
+  epochs: 20
+  optimizer: adam # adam, rms, adamax
+  lr: 0.0002 # 0.0002
   weight_decay: 0.00001 # 0.00001
   grad_acc_step: 32
 inference:

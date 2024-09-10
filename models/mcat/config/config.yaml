@@ -1,4 +1,4 @@
-device: cuda
+device: cpu
 wandb_enabled: True
 dataset:
   name: TCGA-OV
@@ -10,7 +10,7 @@ model:
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt
   checkpoint_epoch: 0 # 0 if saving is not necessary
   checkpoint_dir: checkpoints/
-  fusion: concat # concat, gated_concat, bilinear
+  fusion: gated_concat # concat, gated_concat, bilinear
   model_size: medium
 training:
   train_size: 0.8
@@ -23,7 +23,7 @@ inference:
   attention_file: attention_outputs/ATTN_TCGA-A2-A0EY-01Z-00-DX1.2F2428B3-0767-48E0-AC22-443C244CBD16.pt
   dataset:
     file: ../../input/inference/brca.csv
-    patches_dir: ../../input/inference/patches/
+    patches_dir: ../../input/inference/
     signatures: ../../input/signatures.csv
   model:
     name: MCAT

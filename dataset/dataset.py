@@ -2,17 +2,17 @@ import torch
 import os
 import pandas as pd
 import numpy as np
+import time
 
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from scipy import stats
 from functools import lru_cache
 
 
 class MultimodalDatasetV2(Dataset):
-    def __init__(self, file, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, inference=False, normalize=True):
+    def __init__(self, file: str, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, inference=False, normalize=True):
         self.data = pd.read_csv(file)
-        survival_class, _ = pd.qcut(self.data['survival_months'], q=4, retbins=True, labels=False)
-        self.data['survival_class'] = survival_class
+
         if inference:
             self.patches_dir = config['inference']['dataset']['patches_dir']
         else:
@@ -32,6 +32,9 @@ class MultimodalDatasetV2(Dataset):
             self.data.reset_index(drop=True, inplace=True)
             print(f'Remaining samples after removing incomplete: {len(self.data)}')
 
+        survival_class, _ = pd.qcut(self.data['survival_months'], q=4, retbins=True, labels=False)
+        self.data['survival_class'] = survival_class
+
         # RNA
         self.rnaseq = self.data.iloc[:, self.data.columns.str.endswith('_rnaseq')].astype(float)
         if top_rnaseq is not None:
@@ -43,14 +46,17 @@ class MultimodalDatasetV2(Dataset):
         if normalize:
             self.rnaseq = 2 * (self.rnaseq - self.rnaseq.min()) / (self.rnaseq.max() - self.rnaseq.min()) - 1
         print(f'RNA data size: {self.rnaseq_size}')
+        self.rnaseq = torch.tensor(self.rnaseq.values)
         # CNV
         self.cnv = self.data.iloc[:, self.data.columns.str.endswith('_cnv')].astype(float)
         self.cnv_size = len(self.cnv.columns)
         print(f'CNV data size: {self.cnv_size}')
+        self.cnv = torch.tensor(self.cnv.values)
         # MUT
         self.mut = self.data.iloc[:, self.data.columns.str.endswith('_mut')].astype(float)
         self.mut_size = len(self.mut.columns)
         print(f'MUT data size: {self.mut_size}')
+        self.mut = torch.tensor(self.mut.values)
 
         # Signatures
         self.use_signatures = use_signatures
@@ -69,8 +75,8 @@ class MultimodalDatasetV2(Dataset):
                     gene += '_rnaseq'
                     if gene in self.data.columns:
                         columns[gene] = self.data[gene]
-                self.signature_data[signature_name] = pd.DataFrame(columns)
-                self.signature_sizes.append(len(self.signature_data[signature_name].columns))
+                self.signature_data[signature_name] = torch.tensor(pd.DataFrame(columns).values)
+                self.signature_sizes.append(self.signature_data[signature_name].shape[1])
             print(f'Signatures size: {self.signature_sizes}')
 
     def __len__(self):
@@ -89,19 +95,19 @@ class MultimodalDatasetV2(Dataset):
         patches_embeddings = self.load_patch_embedding(slide_name)
 
         if not self.use_signatures:
-            rnaseq = self.rnaseq.iloc[index].values
-            cnv = self.cnv.iloc[index].values
-            mut = self.mut.iloc[index].values
+            rnaseq = self.rnaseq[index].type(torch.float32)
+            cnv = self.cnv[index].type(torch.float32)
+            mut = self.mut[index].type(torch.float32)
             omics_data = {
-                'rnaseq': torch.tensor(rnaseq, dtype=torch.float32),
-                'cnv': torch.tensor(cnv, dtype=torch.float32),
-                'mut': torch.tensor(mut, dtype=torch.float32)
+                'rnaseq': rnaseq,
+                'cnv': cnv,
+                'mut': mut
             }
         else:
             omics_data = []
             for signature in self.signatures:
-                signature_data = self.signature_data[signature].iloc[index].astype(float).values
-                omics_data.append(torch.tensor(signature_data, dtype=torch.float32))
+                signature_data = self.signature_data[signature][index].type(torch.float32)
+                omics_data.append(signature_data)
 
         return survival_months, survival_class, censorship, omics_data, patches_embeddings
 
@@ -154,3 +160,27 @@ class GenomicDataset(Dataset):
         cnv = torch.tensor(omics_group['cnv'][()])
 
         return survival_months, survival_class, censorship, rnaseq, cnv
+
+
+def test_multimodal_dataset():
+    print('Testing MultimodalDatasetV2...')
+
+    config = {
+        'dataset': {
+            'file': '../input/luad/luad.csv',
+            'patches_dir': '../input/luad/patches/',
+            'signatures': '../input/signatures.csv'
+        }
+    }
+
+    dataset = MultimodalDatasetV2(config['dataset']['file'], config, use_signatures=True)
+    loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=False)
+
+    start_dataload_time = time.time()
+    for batch_index, (survival_months, survival_class, censorship, omics_data, patches_embeddings) in enumerate(loader):
+        pass
+    end_dataload_time = time.time()
+
+    print('Average dataload time: {:.2f}'.format((end_dataload_time - start_dataload_time) / len(dataset)))
+
+    print('Test successful')

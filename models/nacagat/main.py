@@ -26,10 +26,10 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
     for batch_index, (survival_months, survival_class, censorship, omics_data, patches_embeddings) in enumerate(
             train_loader):
 
-        survival_months = survival_months.to(device)
-        survival_class = survival_class.to(device)
+        survival_months = survival_months.to(device, non_blocking=True)
+        survival_class = survival_class.to(device, non_blocking=True)
         survival_class = survival_class.unsqueeze(0).to(torch.int64)
-        censorship = censorship.type(torch.FloatTensor).to(device)
+        censorship = censorship.type(torch.FloatTensor).to(device, non_blocking=True)
         patches_embeddings = patches_embeddings.to(device)
         omics_data = [omic_data.to(device) for omic_data in omics_data]
         hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)

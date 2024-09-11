@@ -19,9 +19,9 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
     grad_acc_step = config['training']['grad_acc_step']
     checkpoint_epoch = config['model']['checkpoint_epoch']
     train_loss = 0.0
-    risk_scores = np.zeros((len(train_loader)))
-    censorships = np.zeros((len(train_loader)))
-    event_times = np.zeros((len(train_loader)))
+    risk_scores = torch.zeros(len(train_loader), device=device)
+    censorships = torch.zeros(len(train_loader), device=device)
+    event_times = torch.zeros(len(train_loader), device=device)
     start_batch_time = time.time()
     for batch_index, (survival_months, survival_class, censorship, omics_data, patches_embeddings) in enumerate(
             train_loader):
@@ -44,14 +44,14 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
             raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
         loss_value = loss.item()
 
-        risk = -torch.sum(survs, dim=1).detach().cpu().numpy()
-        risk_scores[batch_index] = risk.item()
-        censorships[batch_index] = censorship.item()
-        event_times[batch_index] = survival_months.item()
+        risk = -torch.sum(survs, dim=1)
+        risk_scores[batch_index] = risk
+        censorships[batch_index] = censorship
+        event_times[batch_index] = survival_months
 
         train_loss += loss_value
 
-        if (batch_index + 1) % 32 == 0:
+        if (batch_index + 1) % 50 == 0:
             print('\tbatch: {}, loss: {:.4f}, label: {}, survival_months: {:.2f}, risk: {:.4f}'.format(
                 batch_index, loss_value, survival_class.item(), survival_months.item(), float(risk.item())))
             end_batch_time = time.time()
@@ -66,6 +66,9 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
 
     # Calculate loss and error for epoch
     train_loss /= len(train_loader)
+    risk_scores = risk_scores.detach().cpu().numpy()
+    censorships = censorships.detach().cpu().numpy()
+    event_times = event_times.detach().cpu().numpy()
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
     print('Epoch: {}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch + 1, train_loss, c_index))
     if checkpoint_epoch > 0:
@@ -178,8 +181,8 @@ def main():
     train_size = int(train_size * len(dataset))
     val_size = len(dataset) - train_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=6, pin_memory=False)
-    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=6, pin_memory=False)
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=6, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=6, pin_memory=True)
     # Model
     model_size = config['model']['model_size']
     omics_sizes = dataset.signature_sizes

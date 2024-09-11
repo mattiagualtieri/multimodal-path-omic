@@ -20,10 +20,11 @@ class MultimodalDataset(Dataset):
         if self.patches_dir is None:
             self.patches_dir = ''
 
+        self.use_h5_dataset = False
         try:
             self.use_h5_dataset = config['dataset']['h5_dataset'] is not None
         except KeyError:
-            self.use_h5_dataset = False
+            pass
 
         if remove_incomplete_samples:
             slide_index = 0

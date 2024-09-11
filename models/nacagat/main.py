@@ -153,8 +153,8 @@ def wandb_init(config):
     )
 
 
-def main():
-    with open('config/config.yaml') as config_file:
+def main(config_path: str):
+    with open(config_path) as config_file:
         config = yaml.load(config_file, Loader=yaml.FullLoader)
 
     wandb_enabled = config['wandb_enabled']
@@ -181,8 +181,8 @@ def main():
     train_size = int(train_size * len(dataset))
     val_size = len(dataset) - train_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=6, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=6, pin_memory=True)
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=6, pin_memory=False)
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=6, pin_memory=False)
     # Model
     model_size = config['model']['model_size']
     omics_sizes = dataset.signature_sizes
@@ -250,5 +250,13 @@ def main():
 
 if __name__ == '__main__':
     print(f'[{datetime.datetime.now().strftime("%d/%m/%Y - %H:%M")}] NaCAGAT main started')
-    main()
+    main('config/config.yaml')
     print(f'[{datetime.datetime.now().strftime("%d/%m/%Y - %H:%M")}] NaCAGAT main finished')
+
+
+def test_main():
+    print('Testing NaCAGAT main...')
+
+    main('config/config_test.yaml')
+
+    print('Test successful')

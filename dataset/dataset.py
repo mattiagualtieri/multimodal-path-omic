@@ -3,12 +3,13 @@ import os
 import pandas as pd
 import numpy as np
 import time
+import h5py
 
 from torch.utils.data import Dataset, DataLoader
 from scipy import stats
 
 
-class MultimodalDatasetV2(Dataset):
+class MultimodalDataset(Dataset):
     def __init__(self, file: str, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, inference=False, normalize=True):
         self.data = pd.read_csv(file)
 
@@ -19,14 +20,29 @@ class MultimodalDatasetV2(Dataset):
         if self.patches_dir is None:
             self.patches_dir = ''
 
+        try:
+            self.use_h5_dataset = config['dataset']['h5_dataset'] is not None
+        except KeyError:
+            self.use_h5_dataset = False
+
         if remove_incomplete_samples:
             slide_index = 0
             complete_data_only = []
-            for slide in self.data['slide_id']:
-                slide_name = slide.replace('.svs', '.pt')
-                if os.path.exists(os.path.join(self.patches_dir, slide_name)):
-                    complete_data_only.append(self.data.iloc[slide_index])
-                slide_index += 1
+            if not self.use_h5_dataset:
+                for slide in self.data['slide_id']:
+                    slide_name = slide.replace('.svs', '.pt')
+                    if os.path.exists(os.path.join(self.patches_dir, slide_name)):
+                        complete_data_only.append(self.data.iloc[slide_index])
+                    slide_index += 1
+            else:
+                self.h5_dataset = config['dataset']['h5_dataset']
+                self.h5_file = h5py.File(self.h5_dataset, 'r')
+                for slide in self.data['slide_id']:
+                    slide_name = slide.replace('.svs', '')
+                    if slide_name in self.h5_file:
+                        complete_data_only.append(self.data.iloc[slide_index])
+                    slide_index += 1
+
             self.data = pd.DataFrame(complete_data_only)
             self.data.reset_index(drop=True, inplace=True)
             print(f'Remaining samples after removing incomplete: {len(self.data)}')
@@ -90,8 +106,12 @@ class MultimodalDatasetV2(Dataset):
         survival_class = self.survival_class[index]
         censorship = self.censorship[index]
 
-        slide_name = self.data['slide_id'][index].replace('.svs', '.pt')
-        patches_embeddings = torch.load(os.path.join(self.patches_dir, slide_name))
+        if not self.use_h5_dataset:
+            slide_name = self.data['slide_id'][index].replace('.svs', '.pt')
+            patches_embeddings = torch.load(os.path.join(self.patches_dir, slide_name))
+        else:
+            slide_name = self.data['slide_id'][index].replace('.svs', '')
+            patches_embeddings = torch.tensor(self.h5_file[slide_name])
 
         if not self.use_signatures:
             omics_data = {
@@ -107,59 +127,13 @@ class MultimodalDatasetV2(Dataset):
 
         return survival_months, survival_class, censorship, omics_data, patches_embeddings
 
-
-class MultimodalDataset(Dataset):
-    def __init__(self, hdf5_file):
-        self.hdf5_file = hdf5_file
-        self.indexes = list(self.hdf5_file.keys())
-
-    def __len__(self):
-        return len(self.indexes)
-
-    def __getitem__(self, index):
-        index = self.indexes[index]
-        case_group = self.hdf5_file[index]
-
-        clinical_group = case_group['clinical']
-        survival_months = torch.tensor(clinical_group['survival_months'][()])
-        survival_class = torch.tensor(clinical_group['survival_class'][()])
-        censorship = torch.tensor(clinical_group['censorship_status'][()])
-
-        omics_group = case_group['omics']
-        omics_data = [torch.tensor(omics_group[dataset][:]) for dataset in omics_group]
-
-        wsi_group = case_group['wsi']
-        patches_embeddings = torch.tensor(wsi_group['patches'][()])
-
-        return survival_months, survival_class, censorship, omics_data, patches_embeddings
-
-
-class GenomicDataset(Dataset):
-    def __init__(self, hdf5_file):
-        self.hdf5_file = hdf5_file
-        self.indexes = list(self.hdf5_file.keys())
-
-    def __len__(self):
-        return len(self.indexes)
-
-    def __getitem__(self, index):
-        index = self.indexes[index]
-        case_group = self.hdf5_file[index]
-
-        clinical_group = case_group['clinical']
-        survival_months = torch.tensor(clinical_group['survival_months'][()])
-        survival_class = torch.tensor(clinical_group['survival_class'][()])
-        censorship = torch.tensor(clinical_group['censorship_status'][()])
-
-        omics_group = case_group['genomics']
-        rnaseq = torch.tensor(omics_group['rnaseq'][()])
-        cnv = torch.tensor(omics_group['cnv'][()])
-
-        return survival_months, survival_class, censorship, rnaseq, cnv
+    def __del__(self):
+        if self.use_h5_dataset:
+            self.h5_file.close()
 
 
 def test_multimodal_dataset():
-    print('Testing MultimodalDatasetV2...')
+    print('Testing MultimodalDataset...')
 
     config = {
         'dataset': {
@@ -169,7 +143,32 @@ def test_multimodal_dataset():
         }
     }
 
-    dataset = MultimodalDatasetV2(config['dataset']['file'], config, use_signatures=True)
+    dataset = MultimodalDataset(config['dataset']['file'], config, use_signatures=True)
+    loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=False)
+
+    start_dataload_time = time.time()
+    for batch_index, (survival_months, survival_class, censorship, omics_data, patches_embeddings) in enumerate(loader):
+        pass
+    end_dataload_time = time.time()
+
+    print('Average dataload time: {:.2f}'.format((end_dataload_time - start_dataload_time) / len(dataset)))
+
+    print('Test successful')
+
+
+def test_multimodal_dataset_h5():
+    print('Testing MultimodalDataset...')
+
+    config = {
+        'dataset': {
+            'file': '../input/luad/luad.csv',
+            'patches_dir': '../input/luad/patches/',
+            'h5_dataset': '../input/luad/luad.h5',
+            'signatures': '../input/signatures.csv'
+        }
+    }
+
+    dataset = MultimodalDataset(config['dataset']['file'], config, use_signatures=True)
     loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=False)
 
     start_dataload_time = time.time()

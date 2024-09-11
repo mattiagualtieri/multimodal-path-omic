@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, random_split
 from sksurv.metrics import concordance_index_censored
 from models.loss import CrossEntropySurvivalLoss, SurvivalClassificationTobitLoss
 from nacagat import NarrowContextualAttentionGateTransformer
-from dataset.dataset import MultimodalDatasetV2
+from dataset.dataset import MultimodalDataset
 
 
 def train(epoch, config, device, train_loader, model, loss_function, optimizer):
@@ -167,7 +167,7 @@ def main():
 
     # Dataset
     file_csv = config['dataset']['file']
-    dataset = MultimodalDatasetV2(file_csv, config, use_signatures=True, normalize=False)
+    dataset = MultimodalDataset(file_csv, config, use_signatures=True, normalize=False)
     train_size = config['training']['train_size']
     print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')
     train_size = int(train_size * len(dataset))

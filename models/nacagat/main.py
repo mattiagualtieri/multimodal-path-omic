@@ -154,6 +154,11 @@ def main():
     with open('config/config.yaml') as config_file:
         config = yaml.load(config_file, Loader=yaml.FullLoader)
 
+    wandb_enabled = config['wandb_enabled']
+    if wandb_enabled:
+        print('Setting up wandb for report')
+        wandb_init(config)
+
     device = config['device']
     if device == 'cuda' and not torch.cuda.is_available():
         print('CUDA not available')
@@ -223,11 +228,6 @@ def main():
     if checkpoint_path is not None:
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         starting_epoch = checkpoint['epoch']
-
-    wandb_enabled = config['wandb_enabled']
-    if wandb_enabled:
-        print('Setting up wandb for report')
-        wandb_init(config)
 
     print('Training started...')
     model.train()

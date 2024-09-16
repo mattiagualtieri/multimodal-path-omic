@@ -10,7 +10,7 @@ from scipy import stats
 
 
 class MultimodalDataset(Dataset):
-    def __init__(self, file: str, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, inference=False, normalize=True):
+    def __init__(self, file: str, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, inference=False, standardize=True, normalize=True):
         self.data = pd.read_csv(file)
 
         if inference:
@@ -63,6 +63,8 @@ class MultimodalDataset(Dataset):
             sort_idx = np.argsort(mad)[-top_rnaseq:]
             self.rnaseq = rnaseq[rnaseq.columns[sort_idx]]
         self.rnaseq_size = len(self.rnaseq.columns)
+        if standardize:
+            self.rnaseq = (self.rnaseq - self.rnaseq.mean()) / self.rnaseq.std()
         if normalize:
             self.rnaseq = 2 * (self.rnaseq - self.rnaseq.min()) / (self.rnaseq.max() - self.rnaseq.min()) - 1
         print(f'RNA data size: {self.rnaseq_size}')

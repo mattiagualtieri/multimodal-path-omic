@@ -6,3 +6,7 @@ A suite of multimodal models for histological WSI and omics data integration and
 
 ## Multimodal Double Co-Attention Transformer (MDCAT)
 <img src="docs/mdcat/architecture.png" align="center" />
+
+## Narrow Contextual Attention GAte Transformer (NaCAGAT)
+<img src="docs/nacagat/architecture.png" align="center" />
+<img src="docs/nacagat/pcag.png" align="center" />

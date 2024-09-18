@@ -148,7 +148,9 @@ def wandb_init(config):
             'architecture': config['model']['name'],
             'fusion': config['model']['fusion'],
             'loss': config['training']['loss'],
-            'model_size': config['model']['model_size']
+            'model_size': config['model']['model_size'],
+            'normalization': config['dataset']['normalize'],
+            'standardization': config['dataset']['standardize']
         }
     )
 
@@ -175,14 +177,17 @@ def main(config_path: str):
 
     # Dataset
     file_csv = config['dataset']['file']
-    dataset = MultimodalDataset(file_csv, config, use_signatures=True, normalize=False)
+    normalize = config['dataset']['normalize']
+    standardize = config['dataset']['standardize']
+    print(f'Normalization: {normalize}, Standardization: {standardize}')
+    dataset = MultimodalDataset(file_csv, config, use_signatures=True, normalize=normalize, standardize=standardize)
     train_size = config['training']['train_size']
     print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')
     train_size = int(train_size * len(dataset))
     val_size = len(dataset) - train_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=6, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=6, pin_memory=True)
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
     # Model
     model_size = config['model']['model_size']
     omics_sizes = dataset.signature_sizes

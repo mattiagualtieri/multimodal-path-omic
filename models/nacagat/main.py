@@ -173,6 +173,7 @@ def main(config_path: str):
     if wandb_enabled:
         print('Setting up wandb for report')
         # os.environ["WANDB_SILENT"] = "true"
+        os.environ['WANDB__SERVICE_WAIT'] = '300'
         wandb_init(config)
 
     device = config['device']

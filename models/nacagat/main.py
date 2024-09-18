@@ -148,6 +148,9 @@ def validate(epoch, config, device, val_loader, model, loss_function):
 def wandb_init(config):
     wandb.init(
         project='NaCAGAT',
+        settings=wandb.Settings(
+            init_timeout=300,
+        ),
         config={
             'dataset': config['dataset']['name'],
             'optimizer': config['training']['optimizer'],

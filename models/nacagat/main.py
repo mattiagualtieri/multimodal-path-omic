@@ -162,6 +162,7 @@ def main(config_path: str):
     wandb_enabled = config['wandb_enabled']
     if wandb_enabled:
         print('Setting up wandb for report')
+        os.environ["WANDB_SILENT"] = "true"
         wandb_init(config)
 
     device = config['device']

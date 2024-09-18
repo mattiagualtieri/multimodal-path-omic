@@ -1,17 +1,27 @@
+print('STARTED MAIN')
 import torch.cuda
+print('Imported torch.cuda')
 import yaml
+print('Imported yaml')
 import os
+print('Imported os')
 import time
+print('Imported time')
 import datetime
+print('Imported datetime')
 import wandb
+print('Imported wandb')
 import numpy as np
+print('Imported numpy')
 import torch.nn as nn
+print('Imported torch.nn')
 
 from torch.utils.data import DataLoader, random_split
 from sksurv.metrics import concordance_index_censored
 from models.loss import CrossEntropySurvivalLoss, SurvivalClassificationTobitLoss
 from nacagat import NarrowContextualAttentionGateTransformer
 from dataset.dataset import MultimodalDataset
+print('Imported all private stuff')
 
 
 def train(epoch, config, device, train_loader, model, loss_function, optimizer):

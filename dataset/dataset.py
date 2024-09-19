@@ -169,6 +169,9 @@ class MultimodalDataset(Dataset):
         instance.patches_dir = original_instance.patches_dir
         instance.use_h5_dataset = original_instance.use_h5_dataset
         instance.use_signatures = original_instance.use_signatures
+        if original_instance.use_signatures:
+            instance.signatures = original_instance.signatures
+            instance.signature_sizes = original_instance.signature_sizes
         instance.h5_dataset = original_instance.h5_dataset if original_instance.use_h5_dataset else None
 
         if original_instance.use_h5_dataset:
@@ -279,5 +282,9 @@ def test_multimodal_dataset_split():
     dataset = MultimodalDataset(config['dataset']['file'], config, use_signatures=True)
     train_split, test_split = dataset.split(0.7)
     assert len(train_split) > len(test_split)
+
+    loader = DataLoader(train_split, batch_size=1, shuffle=False, num_workers=0, pin_memory=False)
+    for batch_index, (survival_months, survival_class, censorship, omics_data, patches_embeddings) in enumerate(loader):
+        pass
 
     print('Test successful')

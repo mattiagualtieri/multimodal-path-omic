@@ -130,6 +130,87 @@ class MultimodalDataset(Dataset):
 
         return survival_months, survival_class, censorship, omics_data, patches_embeddings
 
+    def split(self, train_size):
+        # Ensure train_size is a valid ratio
+        if not 0 < train_size < 1:
+            raise ValueError("train_size should be a float between 0 and 1.")
+
+        # Get unique patients
+        unique_patients = self.data['patient'].unique()
+
+        # Shuffle patients randomly
+        np.random.shuffle(unique_patients)
+
+        # Determine the number of patients in the train split
+        train_patient_count = int(len(unique_patients) * train_size)
+
+        # Split patients into train and test sets
+        train_patients = unique_patients[:train_patient_count]
+        test_patients = unique_patients[train_patient_count:]
+
+        # Filter the data into train and test sets
+        train_data = self.data[self.data['patient'].isin(train_patients)].copy()
+        test_data = self.data[self.data['patient'].isin(test_patients)].copy()
+
+        # Create new instances of MultimodalDataset with the train and test data
+        train_dataset = MultimodalDataset.from_dataframe(train_data, self)
+        test_dataset = MultimodalDataset.from_dataframe(test_data, self)
+
+        return train_dataset, test_dataset
+
+    @classmethod
+    def from_dataframe(cls, df, original_instance):
+        # Create a new MultimodalDataset instance from an existing DataFrame
+        # while preserving the original configuration and parameters
+        instance = cls.__new__(cls)  # Create a new instance without calling __init__
+
+        # Copy attributes from the original instance
+        instance.data = df
+        instance.patches_dir = original_instance.patches_dir
+        instance.use_h5_dataset = original_instance.use_h5_dataset
+        instance.use_signatures = original_instance.use_signatures
+        instance.h5_dataset = original_instance.h5_dataset if original_instance.use_h5_dataset else None
+
+        if original_instance.use_h5_dataset:
+            instance.h5_file = h5py.File(instance.h5_dataset, 'r')
+
+        # Copy RNA, CNV, and MUT data with the new subset of data
+        instance.survival_months = df['survival_months'].values
+        instance.survival_class = df['survival_class'].values
+        instance.censorship = df['censorship'].values
+
+        # RNA
+        rnaseq = df.iloc[:, df.columns.str.endswith('_rnaseq')].astype(float)
+        if original_instance.rnaseq_size == len(rnaseq.columns):
+            instance.rnaseq = torch.tensor(rnaseq.values, dtype=torch.float32)
+        else:
+            instance.rnaseq = torch.tensor(np.zeros((len(df), original_instance.rnaseq_size)), dtype=torch.float32)
+
+        # CNV
+        cnv = df.iloc[:, df.columns.str.endswith('_cnv')].astype(float)
+        if original_instance.cnv_size == len(cnv.columns):
+            instance.cnv = torch.tensor(cnv.values, dtype=torch.float32)
+        else:
+            instance.cnv = torch.tensor(np.zeros((len(df), original_instance.cnv_size)), dtype=torch.float32)
+
+        # MUT
+        mut = df.iloc[:, df.columns.str.endswith('_mut')].astype(float)
+        if original_instance.mut_size == len(mut.columns):
+            instance.mut = torch.tensor(mut.values, dtype=torch.float32)
+        else:
+            instance.mut = torch.tensor(np.zeros((len(df), original_instance.mut_size)), dtype=torch.float32)
+
+        # Copy signature data if use_signatures is True
+        if original_instance.use_signatures:
+            instance.signature_sizes = original_instance.signature_sizes
+            instance.signature_data = {}
+            for signature_name in original_instance.signatures:
+                signature_data = original_instance.signature_data[signature_name]
+                indices = df.index
+                instance.signature_data[signature_name] = signature_data[indices]
+
+        return instance
+
     def __del__(self):
         if self.use_h5_dataset:
             self.h5_file.close()
@@ -180,5 +261,23 @@ def test_multimodal_dataset_h5():
     end_dataload_time = time.time()
 
     print('Average dataload time: {:.2f}'.format((end_dataload_time - start_dataload_time) / len(dataset)))
+
+    print('Test successful')
+
+
+def test_multimodal_dataset_split():
+    print('Testing MultimodalDataset...')
+
+    config = {
+        'dataset': {
+            'file': '../input/ov/decider_tcga_ov.csv',
+            'patches_dir': '../input/ov/patches/',
+            'signatures': '../input/signatures.csv'
+        }
+    }
+
+    dataset = MultimodalDataset(config['dataset']['file'], config, use_signatures=True)
+    train_split, test_split = dataset.split(0.7)
+    assert len(train_split) > len(test_split)
 
     print('Test successful')

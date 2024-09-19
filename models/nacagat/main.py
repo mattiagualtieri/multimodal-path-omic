@@ -188,7 +188,6 @@ def main(config_path: str):
     dataset = MultimodalDataset(file_csv, config, use_signatures=True, normalize=normalize, standardize=standardize)
     train_size = config['training']['train_size']
     print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')
-    train_size = int(train_size * len(dataset))
     train_dataset, val_dataset = dataset.split(train_size)
     print(f'Samples in train: {len(train_dataset)}, Samples in validation: {len(val_dataset)}')
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)

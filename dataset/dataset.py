@@ -152,6 +152,10 @@ class MultimodalDataset(Dataset):
         train_data = self.data[self.data['patient'].isin(train_patients)].copy()
         test_data = self.data[self.data['patient'].isin(test_patients)].copy()
 
+        # Reset indices for train and test datasets
+        train_data.reset_index(drop=True, inplace=True)
+        test_data.reset_index(drop=True, inplace=True)
+
         # Create new instances of MultimodalDataset with the train and test data
         train_dataset = MultimodalDataset.from_dataframe(train_data, self)
         test_dataset = MultimodalDataset.from_dataframe(test_data, self)
@@ -164,6 +168,8 @@ class MultimodalDataset(Dataset):
         # while preserving the original configuration and parameters
         instance = cls.__new__(cls)  # Create a new instance without calling __init__
 
+        # Reset indices in the DataFrame
+        df = df.reset_index(drop=True)
         # Copy attributes from the original instance
         instance.data = df
         instance.patches_dir = original_instance.patches_dir

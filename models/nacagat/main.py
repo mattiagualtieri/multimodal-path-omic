@@ -151,6 +151,7 @@ def wandb_init(config):
             'architecture': config['model']['name'],
             'fusion': config['model']['fusion'],
             'loss': config['training']['loss'],
+            'alpha': config['training']['alpha'],
             'model_size': config['model']['model_size'],
             'normalization': config['dataset']['normalize'],
             'standardization': config['dataset']['standardize']

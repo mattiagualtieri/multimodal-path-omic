@@ -5,6 +5,7 @@ dataset:
   file: /work/h2020deciderficarra_shared/mgualtieri/ov/decider_tcga_ov.csv
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
+  decider_only: True
   normalize: False
   standardize: True
 model:

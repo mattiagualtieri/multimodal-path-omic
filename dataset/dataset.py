@@ -13,6 +13,11 @@ class MultimodalDataset(Dataset):
     def __init__(self, file: str, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, inference=False, standardize=True, normalize=True):
         self.data = pd.read_csv(file)
 
+        if config['dataset']['decider_only']:
+            print('Using DECIDER data only')
+            self.data = self.data.loc[self.data['is_decider'] == 1.0]
+            self.data.reset_index(drop=True, inplace=True)
+
         if inference:
             self.patches_dir = config['inference']['dataset']['patches_dir']
         else:
@@ -232,7 +237,8 @@ def test_multimodal_dataset():
         'dataset': {
             'file': '../input/luad/luad.csv',
             'patches_dir': '../input/luad/patches/',
-            'signatures': '../input/signatures.csv'
+            'signatures': '../input/signatures.csv',
+            'decider_only': False
         }
     }
 
@@ -257,7 +263,8 @@ def test_multimodal_dataset_h5():
             'file': '../input/luad/luad.csv',
             'patches_dir': '../input/luad/patches/',
             'h5_dataset': '../input/luad/luad.h5',
-            'signatures': '../input/signatures.csv'
+            'signatures': '../input/signatures.csv',
+            'decider_only': False
         }
     }
 
@@ -281,7 +288,8 @@ def test_multimodal_dataset_split():
         'dataset': {
             'file': '../input/ov/decider_tcga_ov.csv',
             'patches_dir': '../input/ov/patches/',
-            'signatures': '../input/signatures.csv'
+            'signatures': '../input/signatures.csv',
+            'decider_only': True
         }
     }
 

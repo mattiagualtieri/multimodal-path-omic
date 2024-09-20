@@ -208,13 +208,14 @@ def main(config_path: str):
     if device == 'cuda' and torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
     model.to(device=device)
+    alpha = config['training']['alpha']
     # Loss function
     if config['training']['loss'] == 'ce':
         print('Using CrossEntropyLoss during training')
         loss_function = nn.CrossEntropyLoss()
     elif config['training']['loss'] == 'ces':
         print('Using CrossEntropySurvivalLoss during training')
-        loss_function = CrossEntropySurvivalLoss()
+        loss_function = CrossEntropySurvivalLoss(alpha=alpha)
     elif config['training']['loss'] == 'sct':
         print('Using SurvivalClassificationTobitLoss during training')
         loss_function = SurvivalClassificationTobitLoss()

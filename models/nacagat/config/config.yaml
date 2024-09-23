@@ -14,7 +14,7 @@ model:
   checkpoint_epoch: 0  # 0 if saving is not necessary
   checkpoint_dir: checkpoints/
   fusion: concat # concat, gated_concat, bilinear
-  model_size: big
+  model_size: medium
 training:
   train_size: 0.8
   loss: ces # ces, sct

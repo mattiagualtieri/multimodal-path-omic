@@ -20,12 +20,12 @@ training:
   loss: ces # ces, sct
   epochs: 20
   optimizer: adam # adam, rms, adamax
-  lr: 0.0002 # 0.0002
+  lr: 0.002 # 0.0002
   weight_decay: 0.00001 # 0.00001
   grad_acc_step: 32
   alpha: 0.75
   scheduler: exp # ~, exp
-  gamma: 0.90
+  gamma: 0.5
 inference:
   attention_file: attention_outputs/ATTN_TCGA-A2-A0EY-01Z-00-DX1.2F2428B3-0767-48E0-AC22-443C244CBD16.pt
   dataset:

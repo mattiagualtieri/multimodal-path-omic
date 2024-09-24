@@ -65,10 +65,6 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
         if (batch_index + 1) % grad_acc_step == 0:
             optimizer.step()
             optimizer.zero_grad()
-            if use_scheduler:
-                lr = optimizer.param_groups[0]["lr"]
-                print(f'learning rate: {lr}')
-                scheduler.step()
 
     # Calculate loss and error for epoch
     train_loss /= len(train_loader)
@@ -76,7 +72,11 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
     censorships = censorships.detach().cpu().numpy()
     event_times = event_times.detach().cpu().numpy()
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
-    print('Epoch: {}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch + 1, train_loss, c_index))
+    lr = 'k'
+    if use_scheduler:
+        lr = optimizer.param_groups[0]["lr"]
+        scheduler.step()
+    print('Epoch: {}, lr: {:.8f}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch + 1, lr, train_loss, c_index))
     if checkpoint_epoch > 0:
         if (epoch + 1) % checkpoint_epoch == 0 and epoch != 0:
             now = datetime.datetime.now().strftime('%Y%m%d%H%M')

@@ -39,8 +39,6 @@ class MultimodalDataset(Dataset):
                     slide_name = slide.replace('.svs', '.pt')
                     if os.path.exists(os.path.join(self.patches_dir, slide_name)):
                         complete_data_only.append(self.data.iloc[slide_index])
-                    else:
-                        print(f'{slide_name} not found')
                     slide_index += 1
             else:
                 self.h5_dataset = config['dataset']['h5_dataset']

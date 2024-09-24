@@ -6,6 +6,7 @@ import datetime
 import wandb
 import numpy as np
 import torch.nn as nn
+import torch.optim.lr_scheduler as lrs
 
 from torch.utils.data import DataLoader, random_split
 from sksurv.metrics import concordance_index_censored
@@ -14,9 +15,10 @@ from nacagat import NarrowContextualAttentionGateTransformer
 from dataset.dataset import MultimodalDataset
 
 
-def train(epoch, config, device, train_loader, model, loss_function, optimizer):
+def train(epoch, config, device, train_loader, model, loss_function, optimizer, scheduler):
     model.train()
     grad_acc_step = config['training']['grad_acc_step']
+    use_scheduler = config['training']['scheduler']
     checkpoint_epoch = config['model']['checkpoint_epoch']
     train_loss = 0.0
     risk_scores = torch.zeros(len(train_loader), device=device)
@@ -63,6 +65,10 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer):
         if (batch_index + 1) % grad_acc_step == 0:
             optimizer.step()
             optimizer.zero_grad()
+            if use_scheduler:
+                lr = optimizer.param_groups[0]["lr"]
+                print(f'learning rate: {lr}')
+                scheduler.step()
 
     # Calculate loss and error for epoch
     train_loss /= len(train_loader)
@@ -238,6 +244,13 @@ def main(config_path: str):
                                      lr=lr, weight_decay=weight_decay)
     print(f'Using optimizer: {optimizer_name}')
 
+    scheduler = config['training']['scheduler']
+    if scheduler == 'exp':
+        gamma = config['training']['gamma']
+        scheduler = lrs.ExponentialLR(optimizer, gamma=gamma)
+    else:
+        scheduler = None
+
     starting_epoch = 0
     if checkpoint_path is not None:
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -249,7 +262,7 @@ def main(config_path: str):
     for epoch in range(starting_epoch, epochs):
         print(f'Epoch: {epoch + 1}')
         start_time = time.time()
-        train(epoch, config, device, train_loader, model, loss_function, optimizer)
+        train(epoch, config, device, train_loader, model, loss_function, optimizer, scheduler)
         validate(epoch, config, device, val_loader, model, loss_function)
         end_time = time.time()
         print('Time elapsed for epoch {}: {:.0f}s'.format(epoch + 1, end_time - start_time))

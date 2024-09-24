@@ -158,6 +158,8 @@ def wandb_init(config):
             'fusion': config['model']['fusion'],
             'loss': config['training']['loss'],
             'alpha': config['training']['alpha'],
+            'scheduler': config['training']['scheduler'],
+            'gamma': config['training']['gamma'],
             'model_size': config['model']['model_size'],
             'normalization': config['dataset']['normalize'],
             'standardization': config['dataset']['standardize']

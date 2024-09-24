@@ -232,7 +232,10 @@ def main(config_path: str):
     lr = config['training']['lr']
     weight_decay = config['training']['weight_decay']
     optimizer_name = config['training']['optimizer']
-    if optimizer_name == 'adadelta':
+    if optimizer_name == 'sgd':
+        optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()),
+                                    lr=lr)
+    elif optimizer_name == 'adadelta':
         optimizer = torch.optim.Adadelta(filter(lambda p: p.requires_grad, model.parameters()),
                                          lr=lr, weight_decay=weight_decay)
     elif optimizer_name == 'adamax':

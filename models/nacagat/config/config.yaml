@@ -1,13 +1,13 @@
 device: cuda
 wandb_enabled: True
 dataset:
-  name: DECIDER-OV-OME
-  file: /work/h2020deciderficarra_shared/mgualtieri/ov/decider_ov_ome.csv
+  name: DECIDER-TCGA-OV
+  file: /work/h2020deciderficarra_shared/mgualtieri/ov/decider_tcga_ov.csv
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
-  decider_only: True
+  decider_only: False
   normalize: False
-  standardize: False
+  standardize: True
 model:
   name: NaCAGAT
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt
@@ -19,7 +19,7 @@ training:
   train_size: 0.8
   loss: ces # ces, sct
   epochs: 20
-  optimizer: sgd # sgd, adam, rms, adamax
+  optimizer: adam # sgd, adam, rms, adamax
   lr: 0.0002 # 0.0002
   weight_decay: 0.00001 # 0.00001
   grad_acc_step: 32

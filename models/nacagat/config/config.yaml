@@ -19,13 +19,13 @@ training:
   train_size: 0.8
   loss: ces # ces, sct
   epochs: 20
-  optimizer: adam # sgd, adam, rms, adamax
+  optimizer: sgd # sgd, adam, rms, adamax
   lr: 0.0002 # 0.0002
   weight_decay: 0.00001 # 0.00001
   grad_acc_step: 32
   scheduler: ~ # ~, exp
   alpha: 0.75
-  lambda: 0.000001
+  lambda: 0.0
   gamma: 0.75
 inference:
   attention_file: attention_outputs/ATTN_TCGA-A2-A0EY-01Z-00-DX1.2F2428B3-0767-48E0-AC22-443C244CBD16.pt

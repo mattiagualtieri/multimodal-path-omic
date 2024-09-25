@@ -23,6 +23,7 @@ training:
   lr: 0.0002 # 0.0002
   weight_decay: 0.00001 # 0.00001
   grad_acc_step: 32
-  alpha: 0.75
   scheduler: ~ # ~, exp
+  alpha: 0.75
+  lambda: 0.01
   gamma: 0.95

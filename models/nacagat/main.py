@@ -8,17 +8,19 @@ import numpy as np
 import torch.nn as nn
 import torch.optim.lr_scheduler as lrs
 
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from sksurv.metrics import concordance_index_censored
 from models.loss import CrossEntropySurvivalLoss, SurvivalClassificationTobitLoss
+from models.utils import l1_reg
 from nacagat import NarrowContextualAttentionGateTransformer
 from dataset.dataset import MultimodalDataset
 
 
-def train(epoch, config, device, train_loader, model, loss_function, optimizer, scheduler):
+def train(epoch, config, device, train_loader, model, loss_function, optimizer, scheduler, reg_function):
     model.train()
     grad_acc_step = config['training']['grad_acc_step']
     use_scheduler = config['training']['scheduler']
+    lambda_reg = config['training']['lambda']
     checkpoint_epoch = config['model']['checkpoint_epoch']
     train_loss = 0.0
     risk_scores = torch.zeros(len(train_loader), device=device)
@@ -46,20 +48,25 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
             raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
         loss_value = loss.item()
 
+        if reg_function is None:
+            loss_reg = 0
+        else:
+            loss_reg = reg_function(model) * lambda_reg
+
         risk = -torch.sum(survs, dim=1)
         risk_scores[batch_index] = risk
         censorships[batch_index] = censorship
         event_times[batch_index] = survival_months
 
-        train_loss += loss_value
+        train_loss += loss_value + loss_reg
 
         if (batch_index + 1) % 50 == 0:
             print('\tbatch: {}, loss: {:.4f}, label: {}, survival_months: {:.2f}, risk: {:.4f}'.format(
-                batch_index, loss_value, survival_class.item(), survival_months.item(), float(risk.item())))
+                batch_index, loss_value + loss_reg, survival_class.item(), survival_months.item(), float(risk.item())))
             end_batch_time = time.time()
             print('\t\taverage speed: {:.2f}s per batch'.format((end_batch_time - start_batch_time) / 32))
             start_batch_time = time.time()
-        loss = loss / grad_acc_step
+        loss = loss / grad_acc_step + loss_reg
         loss.backward()
 
         if (batch_index + 1) % grad_acc_step == 0:
@@ -72,11 +79,12 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
     censorships = censorships.detach().cpu().numpy()
     event_times = event_times.detach().cpu().numpy()
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
-    lr = 'k'
     if use_scheduler:
         lr = optimizer.param_groups[0]["lr"]
         scheduler.step()
-    print('Epoch: {}, lr: {:.8f}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch + 1, lr, train_loss, c_index))
+        print('Epoch: {}, lr: {:.8f}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch + 1, lr, train_loss, c_index))
+    else:
+        print('Epoch: {}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch + 1, train_loss, c_index))
     if checkpoint_epoch > 0:
         if (epoch + 1) % checkpoint_epoch == 0 and epoch != 0:
             now = datetime.datetime.now().strftime('%Y%m%d%H%M')
@@ -157,8 +165,9 @@ def wandb_init(config):
             'architecture': config['model']['name'],
             'fusion': config['model']['fusion'],
             'loss': config['training']['loss'],
-            'alpha': config['training']['alpha'],
             'scheduler': config['training']['scheduler'],
+            'alpha': config['training']['alpha'],
+            'lambda': config['training']['lambda'],
             'gamma': config['training']['gamma'],
             'model_size': config['model']['model_size'],
             'normalization': config['dataset']['normalize'],
@@ -174,7 +183,6 @@ def main(config_path: str):
     wandb_enabled = config['wandb_enabled']
     if wandb_enabled:
         print('Setting up wandb for report')
-        # os.environ["WANDB_SILENT"] = "true"
         os.environ['WANDB__SERVICE_WAIT'] = '300'
         wandb_init(config)
 
@@ -261,13 +269,19 @@ def main(config_path: str):
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         starting_epoch = checkpoint['epoch']
 
+    lambda_param = config['training']['lambda']
+    if lambda_param:
+        reg_function = l1_reg
+    else:
+        reg_function = None
+
     print('Training started...')
     model.train()
     epochs = config['training']['epochs']
     for epoch in range(starting_epoch, epochs):
         print(f'Epoch: {epoch + 1}')
         start_time = time.time()
-        train(epoch, config, device, train_loader, model, loss_function, optimizer, scheduler)
+        train(epoch, config, device, train_loader, model, loss_function, optimizer, scheduler, reg_function)
         validate(epoch, config, device, val_loader, model, loss_function)
         end_time = time.time()
         print('Time elapsed for epoch {}: {:.0f}s'.format(epoch + 1, end_time - start_time))

@@ -30,14 +30,14 @@ def get_cnv_size_from_dataset(hdf5_file):
         return len(omics_group['cnv'])
 
 
-def l1_reg_all(model):
-    l1_reg = None
+def l1_reg(model):
+    reg = None
     for W in model.parameters():
-        if l1_reg is None:
-            l1_reg = torch.abs(W).sum()
+        if reg is None:
+            reg = torch.abs(W).sum()
         else:
-            l1_reg = l1_reg + torch.abs(W).sum()
-    return l1_reg
+            reg = reg + torch.abs(W).sum()
+    return reg
 
 
 def init_max_weights(module):

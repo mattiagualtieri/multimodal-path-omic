@@ -103,9 +103,10 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
         wandb.log({"train_loss": train_loss, "train_c_index": c_index})
 
 
-def validate(epoch, config, device, val_loader, model, loss_function):
+def validate(epoch, config, device, val_loader, model, loss_function, reg_function):
     model.eval()
     val_loss = 0.0
+    lambda_reg = config['training']['lambda']
     risk_scores = np.zeros((len(val_loader)))
     censorships = np.zeros((len(val_loader)))
     event_times = np.zeros((len(val_loader)))
@@ -130,20 +131,25 @@ def validate(epoch, config, device, val_loader, model, loss_function):
             raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
         loss_value = loss.item()
 
+        if reg_function is None:
+            loss_reg = 0
+        else:
+            loss_reg = reg_function(model) * lambda_reg
+
         risk = -torch.sum(survs, dim=1).cpu().numpy()
         risk_scores[batch_index] = risk.item()
         censorships[batch_index] = censorship.item()
         event_times[batch_index] = survival_months.item()
 
-        val_loss += loss_value
+        val_loss += loss_value + loss_reg
 
     # calculate loss and error
     val_loss /= len(val_loader)
     c_index = concordance_index_censored((1 - censorships).astype(bool), event_times, risk_scores)[0]
     if epoch == 'final validation':
-        print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch, val_loss, c_index))
+        print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch, val_loss + loss_reg, c_index))
     else:
-        print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch + 1, val_loss, c_index))
+        print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch + 1, val_loss + loss_reg, c_index))
     wandb_enabled = config['wandb_enabled']
     if wandb_enabled:
         wandb.log({"val_loss": val_loss, "val_c_index": c_index})
@@ -282,11 +288,11 @@ def main(config_path: str):
         print(f'Epoch: {epoch + 1}')
         start_time = time.time()
         train(epoch, config, device, train_loader, model, loss_function, optimizer, scheduler, reg_function)
-        validate(epoch, config, device, val_loader, model, loss_function)
+        validate(epoch, config, device, val_loader, model, loss_function, reg_function)
         end_time = time.time()
         print('Time elapsed for epoch {}: {:.0f}s'.format(epoch + 1, end_time - start_time))
 
-    validate('final validation', config, device, val_loader, model, loss_function)
+    validate('final validation', config, device, val_loader, model, loss_function, reg_function)
     if wandb_enabled:
         wandb.finish()
 

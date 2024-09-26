@@ -1,13 +1,13 @@
 device: cuda
 wandb_enabled: True
 dataset:
-  name: DECIDER-TCGA-OV
-  file: /work/h2020deciderficarra_shared/mgualtieri/ov/decider_tcga_ov.csv
+  name: DECIDER-OV
+  file: /work/h2020deciderficarra_shared/mgualtieri/ov/decider_ov.csv
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
-  decider_only: False
+  decider_only: True
   normalize: False
-  standardize: True
+  standardize: False
 model:
   name: NaCAGAT
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt

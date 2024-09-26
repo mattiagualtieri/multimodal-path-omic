@@ -22,7 +22,7 @@ training:
   optimizer: adam # sgd, adam, rms, adamax
   lr: 0.0002 # 0.0002
   weight_decay: 0.00001 # 0.00001
-  grad_acc_step: 16
+  grad_acc_step: 64
   scheduler: ~ # ~, exp
   alpha: 0.75
   lambda: 0.0

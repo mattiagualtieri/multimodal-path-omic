@@ -1,11 +1,11 @@
 device: cuda
 wandb_enabled: True
 dataset:
-  name: DECIDER-OV
-  file: /work/h2020deciderficarra_shared/mgualtieri/ov/decider_ov.csv
-  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
+  name: TCGA-GBMLGG
+  file: /work/h2020deciderficarra_shared/mgualtieri/gbmlgg/gbmlgg.csv
+  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/gbmlgg/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
-  decider_only: True
+  decider_only: False
   normalize: False
   standardize: False
 model:
@@ -24,7 +24,7 @@ training:
   weight_decay: 0.00001 # 0.00001
   grad_acc_step: 32
   scheduler: ~ # ~, exp
-  alpha: 0.20
+  alpha: 0.75
   lambda: 0.0
   gamma: 1.0
 inference:

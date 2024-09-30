@@ -1,9 +1,9 @@
 device: cpu
 wandb_enabled: False
 dataset:
-  name: DECIDER-TCGA-OV
-  file: ../../input/ov/decider_tcga_ov.csv
-  patches_dir: ../../input/ov/patches/
+  name: TCGA-GBMLGG
+  file: ../../input/gbmlgg/gbmlgg.csv
+  patches_dir: ../../input/gbmlgg/patches/
   signatures: ../../input/signatures.csv
   normalize: False
   standardize: False
@@ -16,14 +16,14 @@ model:
   fusion: concat # concat, gated_concat, bilinear
   model_size: medium
 training:
-  train_size: 0.5
+  train_size: 0.8
   loss: ces # ces, sct
-  epochs: 1
+  epochs: 2
   optimizer: adam # adam, rms, adamax
   lr: 0.0002 # 0.0002
   weight_decay: 0.00001 # 0.00001
   grad_acc_step: 32
   scheduler: ~ # ~, exp
   alpha: 0.75
-  lambda: 0.01
+  lambda: 0.0
   gamma: 0.95

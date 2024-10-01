@@ -167,6 +167,20 @@ class MultimodalDataset(Dataset):
 
         return train_dataset, test_dataset
 
+    def leave_one_out(self, patient):
+        train_data = self.data[self.data['patient'] != patient].copy()
+        test_data = self.data[self.data['patient'] == patient].copy()
+
+        # Reset indices for train and test datasets
+        train_data.reset_index(drop=True, inplace=True)
+        test_data.reset_index(drop=True, inplace=True)
+
+        # Create new instances of MultimodalDataset with the train and test data
+        train_dataset = MultimodalDataset.from_dataframe(train_data, self)
+        test_dataset = MultimodalDataset.from_dataframe(test_data, self)
+
+        return train_dataset, test_dataset
+
     @classmethod
     def from_dataframe(cls, df, original_instance):
         # Create a new MultimodalDataset instance from an existing DataFrame

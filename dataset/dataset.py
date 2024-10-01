@@ -53,8 +53,13 @@ class MultimodalDataset(Dataset):
             self.data.reset_index(drop=True, inplace=True)
             print(f'Remaining samples after removing incomplete: {len(self.data)}')
 
-        survival_class, _ = pd.qcut(self.data['survival_months'], q=4, retbins=True, labels=False)
+        n_classes = 4
+        survival_class, class_intervals = pd.qcut(self.data['survival_months'], q=n_classes, retbins=True, labels=False)
         self.data['survival_class'] = survival_class
+        print('Class intervals: [')
+        for i in range(0, 4):
+            print('\t{}: [{:.2f} - {:.2f}]'.format(i, class_intervals[i], class_intervals[i + 1]))
+        print(']')
 
         self.survival_months = self.data['survival_months'].values
         self.survival_class = self.data['survival_class'].values
@@ -72,17 +77,17 @@ class MultimodalDataset(Dataset):
             self.rnaseq = (self.rnaseq - self.rnaseq.mean()) / self.rnaseq.std()
         if normalize:
             self.rnaseq = 2 * (self.rnaseq - self.rnaseq.min()) / (self.rnaseq.max() - self.rnaseq.min()) - 1
-        print(f'RNA data size: {self.rnaseq_size}')
+        # print(f'RNA data size: {self.rnaseq_size}')
         self.rnaseq = torch.tensor(self.rnaseq.values, dtype=torch.float32)
         # CNV
         self.cnv = self.data.iloc[:, self.data.columns.str.endswith('_cnv')].astype(float)
         self.cnv_size = len(self.cnv.columns)
-        print(f'CNV data size: {self.cnv_size}')
+        # print(f'CNV data size: {self.cnv_size}')
         self.cnv = torch.tensor(self.cnv.values, dtype=torch.float32)
         # MUT
         self.mut = self.data.iloc[:, self.data.columns.str.endswith('_mut')].astype(float)
         self.mut_size = len(self.mut.columns)
-        print(f'MUT data size: {self.mut_size}')
+        # print(f'MUT data size: {self.mut_size}')
         self.mut = torch.tensor(self.mut.values, dtype=torch.float32)
 
         # Signatures

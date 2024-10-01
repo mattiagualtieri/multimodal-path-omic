@@ -20,7 +20,7 @@ training:
   test_output_dir: outputs/
   train_size: 0.8
   loss: ces # ces, sct
-  epochs: 50
+  epochs: 20
   optimizer: adam # sgd, adam, rms, adamax
   lr: 0.0002 # 0.0002
   weight_decay: 0.00001 # 0.00001

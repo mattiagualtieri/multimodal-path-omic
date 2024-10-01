@@ -158,6 +158,7 @@ def validate(epoch, config, device, val_loader, model, loss_function, reg_functi
 def test(config, device, val_loader, model, patient):
     model.eval()
     output_dir = config['training']['test_output_dir']
+    now = datetime.datetime.now().strftime('%Y%m%d%H%M')
     for batch_index, (survival_months, survival_class, censorship, omics_data, patches_embeddings) in enumerate(
             val_loader):
         survival_months = survival_months.to(device)
@@ -172,7 +173,8 @@ def test(config, device, val_loader, model, patient):
             hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
             risk = -torch.sum(survs, dim=1).cpu().numpy()
             print(f'Hazards: {hazards}, Survs: {survs}, Risk: {risk}, Y: {Y}')
-            output_file = os.path.join(output_dir, f'ATTN_{patient}_{batch_index}.pt')
+
+            output_file = os.path.join(output_dir, f'ATTN_{patient}_{now}_{batch_index}.pt')
             print(f'Saving attention in {output_file}')
             torch.save(attention_scores['coattn'], output_file)
 

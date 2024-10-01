@@ -88,7 +88,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
     if checkpoint_epoch > 0:
         if (epoch + 1) % checkpoint_epoch == 0 and epoch != 0:
             now = datetime.datetime.now().strftime('%Y%m%d%H%M')
-            filename = f'{config["model"]["name"]}_{epoch + 1}_{now}.pt'
+            filename = f'{config["model"]["name"]}_{config["dataset"]["name"]}_E{epoch + 1}_{now}.pt'
             checkpoint_dir = config['model']['checkpoint_dir']
             checkpoint_path = os.path.join(checkpoint_dir, filename)
             print(f'Saving model into {checkpoint_path}')

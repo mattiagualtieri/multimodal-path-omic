@@ -25,5 +25,5 @@ training:
   grad_acc_step: 32
   scheduler: ~ # ~, exp
   alpha: 0.75
-  lambda: 0.0
+  lambda: 0.0000001
   gamma: 0.95

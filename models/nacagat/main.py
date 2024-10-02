@@ -325,8 +325,12 @@ def main(config_path: str):
         start_time = time.time()
         train(epoch, config, device, train_loader, model, loss_function, optimizer, scheduler, reg_function)
         if leave_one_out:
+            output_attn_epoch = config['training']['output_attn_epoch']
+            save = False
+            if (epoch + 1) % output_attn_epoch == 0 and epoch != 0:
+                save = True
             test_patient = config['training']['leave_one_out']
-            test(config, device, val_loader, model, test_patient)
+            test(config, device, val_loader, model, test_patient, save=save)
         else:
             validate(epoch, config, device, val_loader, model, loss_function, reg_function)
         end_time = time.time()
@@ -334,10 +338,7 @@ def main(config_path: str):
 
     if not leave_one_out:
         validate('final validation', config, device, val_loader, model, loss_function, reg_function)
-    else:
-        test_patient = config['training']['leave_one_out']
-        print(f'Testing patient {test_patient}')
-        test(config, device, val_loader, model, test_patient, save=True)
+
     if wandb_enabled:
         wandb.finish()
 

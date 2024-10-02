@@ -155,7 +155,7 @@ def validate(epoch, config, device, val_loader, model, loss_function, reg_functi
         wandb.log({"val_loss": val_loss, "val_c_index": c_index})
 
 
-def test(config, device, val_loader, model, patient, save=False):
+def test(config, device, epoch, val_loader, model, patient, save=False):
     model.eval()
     output_dir = config['training']['test_output_dir']
     now = datetime.datetime.now().strftime('%Y%m%d%H%M')
@@ -176,7 +176,7 @@ def test(config, device, val_loader, model, patient, save=False):
             print(f'Attn min: {attention_scores["coattn"].min()}, Attn max: {attention_scores["coattn"].max()}')
 
             if save:
-                output_file = os.path.join(output_dir, f'ATTN_{patient}_{now}_{batch_index}.pt')
+                output_file = os.path.join(output_dir, f'ATTN_{patient}_{now}_E{epoch}_{batch_index}.pt')
                 print(f'Saving attention in {output_file}')
                 torch.save(attention_scores['coattn'], output_file)
 
@@ -331,7 +331,7 @@ def main(config_path: str):
             if (epoch + 1) % output_attn_epoch == 0 and epoch != 0:
                 save = True
             test_patient = config['training']['leave_one_out']
-            test(config, device, val_loader, model, test_patient, save=save)
+            test(config, device, epoch + 1, val_loader, model, test_patient, save=save)
         else:
             validate(epoch, config, device, val_loader, model, loss_function, reg_function)
         end_time = time.time()

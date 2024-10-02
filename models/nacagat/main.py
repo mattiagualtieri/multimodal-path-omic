@@ -245,7 +245,6 @@ def main(config_path: str):
         print(f'Samples in train: {len(train_dataset)}, Samples in validation: {len(val_dataset)}')
         train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
         val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
-        output_attn_epoch = config['training']['output_attn_epoch']
     else:
         test_patient = config['training']['leave_one_out']
         print(f'Test patient: {test_patient}')
@@ -253,6 +252,7 @@ def main(config_path: str):
         print(f'Samples in train: {len(train_dataset)}, Samples in validation: {len(val_dataset)}')
         train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
         val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
+        output_attn_epoch = config['training']['output_attn_epoch']
     # Model
     model_size = config['model']['model_size']
     omics_sizes = dataset.signature_sizes

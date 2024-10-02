@@ -1,13 +1,13 @@
 device: cuda
 wandb_enabled: True
 dataset:
-  name: TCGA-OV
-  file: /work/h2020deciderficarra_shared/mgualtieri/ov/tcga_ov.csv
-  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
+  name: TCGA-BRCA
+  file: /work/h2020deciderficarra_shared/mgualtieri/brca/brca.csv
+  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/brca/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
   decider_only: False
   normalize: False
-  standardize: True
+  standardize: False
 model:
   name: NaCAGAT
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt
@@ -16,7 +16,7 @@ model:
   fusion: concat # concat, gated_concat, bilinear
   model_size: medium
 training:
-  leave_one_out: TCGA-25-1320
+  leave_one_out: TCGA-A2-A0EY
   test_output_dir: outputs/
   train_size: 0.8
   loss: ces # ces, sct

@@ -237,6 +237,7 @@ def main(config_path: str):
     print(f'Normalization: {normalize}, Standardization: {standardize}')
     dataset = MultimodalDataset(file_csv, config, use_signatures=True, normalize=normalize, standardize=standardize)
     leave_one_out = config['training']['leave_one_out'] is not None
+    output_attn_epoch = 0
     if not leave_one_out:
         train_size = config['training']['train_size']
         print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')
@@ -244,6 +245,7 @@ def main(config_path: str):
         print(f'Samples in train: {len(train_dataset)}, Samples in validation: {len(val_dataset)}')
         train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
         val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
+        output_attn_epoch = config['training']['output_attn_epoch']
     else:
         test_patient = config['training']['leave_one_out']
         print(f'Test patient: {test_patient}')
@@ -325,7 +327,6 @@ def main(config_path: str):
         start_time = time.time()
         train(epoch, config, device, train_loader, model, loss_function, optimizer, scheduler, reg_function)
         if leave_one_out:
-            output_attn_epoch = config['training']['output_attn_epoch']
             save = False
             if (epoch + 1) % output_attn_epoch == 0 and epoch != 0:
                 save = True

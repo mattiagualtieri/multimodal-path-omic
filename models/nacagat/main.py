@@ -155,7 +155,7 @@ def validate(epoch, config, device, val_loader, model, loss_function, reg_functi
         wandb.log({"val_loss": val_loss, "val_c_index": c_index})
 
 
-def test(config, device, val_loader, model, patient):
+def test(config, device, val_loader, model, patient, save=False):
     model.eval()
     output_dir = config['training']['test_output_dir']
     now = datetime.datetime.now().strftime('%Y%m%d%H%M')
@@ -173,10 +173,12 @@ def test(config, device, val_loader, model, patient):
             hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
             risk = -torch.sum(survs, dim=1).cpu().numpy()
             print(f'Hazards: {hazards}, Survs: {survs}, Risk: {risk}, Y: {Y}')
+            print(f'Attn min: {attention_scores["coattn"].min()}, Attn max: {attention_scores["coattn"].max()}')
 
-            output_file = os.path.join(output_dir, f'ATTN_{patient}_{now}_{batch_index}.pt')
-            print(f'Saving attention in {output_file}')
-            torch.save(attention_scores['coattn'], output_file)
+            if save:
+                output_file = os.path.join(output_dir, f'ATTN_{patient}_{now}_{batch_index}.pt')
+                print(f'Saving attention in {output_file}')
+                torch.save(attention_scores['coattn'], output_file)
 
 
 def wandb_init(config):
@@ -322,7 +324,10 @@ def main(config_path: str):
         print(f'Epoch: {epoch + 1}')
         start_time = time.time()
         train(epoch, config, device, train_loader, model, loss_function, optimizer, scheduler, reg_function)
-        if not leave_one_out:
+        if leave_one_out:
+            test_patient = config['training']['leave_one_out']
+            test(config, device, val_loader, model, test_patient)
+        else:
             validate(epoch, config, device, val_loader, model, loss_function, reg_function)
         end_time = time.time()
         print('Time elapsed for epoch {}: {:.0f}s'.format(epoch + 1, end_time - start_time))
@@ -332,7 +337,7 @@ def main(config_path: str):
     else:
         test_patient = config['training']['leave_one_out']
         print(f'Testing patient {test_patient}')
-        test(config, device, val_loader, model, test_patient)
+        test(config, device, val_loader, model, test_patient, save=True)
     if wandb_enabled:
         wandb.finish()
 

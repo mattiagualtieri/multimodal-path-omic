@@ -9,7 +9,7 @@ from torch.nn.functional import _in_projection_packed, _in_projection, pad, line
 
 from torch.nn.modules.linear import NonDynamicallyQuantizableLinear
 from torch.nn.init import xavier_uniform_, constant_, xavier_normal_
-from torch.nn.modules.activation import _is_make_fx_tracing, _check_arg_device, _arg_requires_grad
+# from torch.nn.modules.activation import _is_make_fx_tracing, _check_arg_device, _arg_requires_grad
 
 
 class AttentionNetGated(nn.Module):
@@ -159,14 +159,14 @@ class MultiheadAttention(nn.Module):
             # generator expressions.
             if torch.overrides.has_torch_function(tensor_args):
                 why_not_fast_path = "some Tensor argument has_torch_function"
-            elif _is_make_fx_tracing():
-                why_not_fast_path = "we are running make_fx tracing"
-            elif not all(_check_arg_device(x) for x in tensor_args):
-                why_not_fast_path = ("some Tensor argument's device is neither one of "
-                                     f"cpu, cuda or {torch.utils.backend_registration._privateuse1_backend_name}")
-            elif torch.is_grad_enabled() and any(_arg_requires_grad(x) for x in tensor_args):
-                why_not_fast_path = ("grad is enabled and at least one of query or the "
-                                     "input/output projection weights or biases requires_grad")
+            # elif _is_make_fx_tracing():
+            #     why_not_fast_path = "we are running make_fx tracing"
+            # elif not all(_check_arg_device(x) for x in tensor_args):
+            #     why_not_fast_path = ("some Tensor argument's device is neither one of "
+            #                          f"cpu, cuda or {torch.utils.backend_registration._privateuse1_backend_name}")
+            # elif torch.is_grad_enabled() and any(_arg_requires_grad(x) for x in tensor_args):
+            #     why_not_fast_path = ("grad is enabled and at least one of query or the "
+            #                          "input/output projection weights or biases requires_grad")
             if not why_not_fast_path:
                 merged_mask, mask_type = self.merge_masks(attn_mask, key_padding_mask, query)
 

@@ -1,13 +1,13 @@
 device: cuda
 wandb_enabled: True
 dataset:
-  name: TCGA-GBMLGG
-  file: /work/h2020deciderficarra_shared/mgualtieri/gbmlgg/gbmlgg.csv
-  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/gbmlgg/slides/
+  name: TCGA-OV
+  file: /work/h2020deciderficarra_shared/mgualtieri/ov/tcga_ov.csv
+  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
   decider_only: False
   normalize: False
-  standardize: False
+  standardize: True
 model:
   name: NaCAGAT
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt
@@ -16,7 +16,7 @@ model:
   fusion: concat # concat, gated_concat, bilinear
   model_size: medium
 training:
-  leave_one_out: TCGA-06-0190
+  leave_one_out: TCGA-25-1320
   output_attn_epoch: 1
   test_output_dir: outputs/
   train_size: 0.8
@@ -30,12 +30,3 @@ training:
   alpha: 0.75
   lambda: 0.0
   gamma: 1.0
-inference:
-  attention_file: attention_outputs/ATTN_TCGA-A2-A0EY-01Z-00-DX1.2F2428B3-0767-48E0-AC22-443C244CBD16.pt
-  dataset:
-    file: ../../input/inference/brca.csv
-    patches_dir: ../../input/inference/
-    signatures: ../../input/signatures.csv
-  model:
-    name: NaCAGAT
-    load_from_checkpoint: checkpoints/NaCAGAT_20_202408161615.pt

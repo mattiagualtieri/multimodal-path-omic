@@ -140,7 +140,7 @@ class MultimodalDataset(Dataset):
 
         return survival_months, survival_class, censorship, omics_data, patches_embeddings
 
-    def split(self, train_size):
+    def split(self, train_size, test: bool = False, patient: str = ''):
         # Ensure train_size is a valid ratio
         if not 0 < train_size < 1:
             raise ValueError("train_size should be a float between 0 and 1.")
@@ -156,35 +156,31 @@ class MultimodalDataset(Dataset):
 
         # Split patients into train and test sets
         train_patients = unique_patients[:train_patient_count]
-        test_patients = unique_patients[train_patient_count:]
+        val_patients = unique_patients[train_patient_count:]
 
         # Filter the data into train and test sets
-        train_data = self.data[self.data['patient'].isin(train_patients)].copy()
-        test_data = self.data[self.data['patient'].isin(test_patients)].copy()
+        test_dataset = None
+        if test:
+            train_data = self.data[self.data['patient'].isin(train_patients)].copy()
+            train_data = train_data[train_data['patient'] != patient]
+            val_data = self.data[self.data['patient'].isin(val_patients)].copy()
+            val_data = val_data[val_data['patient'] != patient]
+            test_data = self.data[self.data['patient'] == patient].copy()
+            test_data.reset_index(drop=True, inplace=True)
+            test_dataset = MultimodalDataset.from_dataframe(test_data, self)
+        else:
+            train_data = self.data[self.data['patient'].isin(train_patients)].copy()
+            val_data = self.data[self.data['patient'].isin(val_patients)].copy()
 
         # Reset indices for train and test datasets
         train_data.reset_index(drop=True, inplace=True)
-        test_data.reset_index(drop=True, inplace=True)
+        val_data.reset_index(drop=True, inplace=True)
 
         # Create new instances of MultimodalDataset with the train and test data
         train_dataset = MultimodalDataset.from_dataframe(train_data, self)
-        test_dataset = MultimodalDataset.from_dataframe(test_data, self)
+        val_dataset = MultimodalDataset.from_dataframe(val_data, self)
 
-        return train_dataset, test_dataset
-
-    def leave_one_out(self, patient):
-        train_data = self.data[self.data['patient'] != patient].copy()
-        test_data = self.data[self.data['patient'] == patient].copy()
-
-        # Reset indices for train and test datasets
-        train_data.reset_index(drop=True, inplace=True)
-        test_data.reset_index(drop=True, inplace=True)
-
-        # Create new instances of MultimodalDataset with the train and test data
-        train_dataset = MultimodalDataset.from_dataframe(train_data, self)
-        test_dataset = MultimodalDataset.from_dataframe(test_data, self)
-
-        return train_dataset, test_dataset
+        return train_dataset, val_dataset, test_dataset
 
     @classmethod
     def from_dataframe(cls, df, original_instance):

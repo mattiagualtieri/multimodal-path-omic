@@ -173,7 +173,8 @@ def test(config, device, epoch, val_loader, model, patient, save=False):
             hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
             risk = -torch.sum(survs, dim=1).cpu().numpy()
             print(f'Hazards: {hazards}, Survs: {survs}, Risk: {risk}, Y: {Y}')
-            print(f'Attn min: {attention_scores["coattn"].min()}, Attn max: {attention_scores["coattn"].max()}')
+            print(f'Attn min: {attention_scores["coattn"].min()}, Attn max: {attention_scores["coattn"].max()}, Attn '
+                  f'mean: {attention_scores["coattn"].mean()}')
 
             if save:
                 output_file = os.path.join(output_dir, f'ATTN_{patient}_{now}_E{epoch}_{batch_index}.pt')
@@ -183,7 +184,7 @@ def test(config, device, epoch, val_loader, model, patient, save=False):
 
 def wandb_init(config):
     wandb.init(
-        project='NaCAGAT',
+        project='NaCAGATv2',
         settings=wandb.Settings(
             init_timeout=300,
         ),
@@ -237,22 +238,18 @@ def main(config_path: str):
     print(f'Normalization: {normalize}, Standardization: {standardize}')
     dataset = MultimodalDataset(file_csv, config, use_signatures=True, normalize=normalize, standardize=standardize)
     leave_one_out = config['training']['leave_one_out'] is not None
-    output_attn_epoch = 0
-    if not leave_one_out:
-        train_size = config['training']['train_size']
-        print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')
-        train_dataset, val_dataset = dataset.split(train_size)
-        print(f'Samples in train: {len(train_dataset)}, Samples in validation: {len(val_dataset)}')
-        train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
-        val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
-    else:
-        test_patient = config['training']['leave_one_out']
-        print(f'Test patient: {test_patient}')
-        train_dataset, val_dataset = dataset.leave_one_out(test_patient)
-        print(f'Samples in train: {len(train_dataset)}, Samples in validation: {len(val_dataset)}')
-        train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
-        val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
-        output_attn_epoch = config['training']['output_attn_epoch']
+    train_size = config['training']['train_size']
+    print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')
+    test_patient = config['training']['leave_one_out']
+    print(f'Test patient: {test_patient}')
+    train_dataset, val_dataset, test_dataset = dataset.split(train_size, test=leave_one_out, patient=test_patient)
+    print(f'Samples in train: {len(train_dataset)}, Samples in validation: {len(val_dataset)}')
+    if test_dataset is not None:
+        print(f'Testing patient {test_patient}')
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
+    output_attn_epoch = config['training']['output_attn_epoch']
     # Model
     model_size = config['model']['model_size']
     omics_sizes = dataset.signature_sizes
@@ -326,19 +323,17 @@ def main(config_path: str):
         print(f'Epoch: {epoch + 1}')
         start_time = time.time()
         train(epoch, config, device, train_loader, model, loss_function, optimizer, scheduler, reg_function)
+        validate(epoch, config, device, val_loader, model, loss_function, reg_function)
         if leave_one_out:
             save = False
-            if (epoch + 1) % output_attn_epoch == 0 and epoch != 0:
+            if (epoch + 1) % output_attn_epoch == 0:
                 save = True
             test_patient = config['training']['leave_one_out']
-            test(config, device, epoch + 1, val_loader, model, test_patient, save=save)
-        else:
-            validate(epoch, config, device, val_loader, model, loss_function, reg_function)
+            test(config, device, epoch + 1, test_loader, model, test_patient, save=save)
         end_time = time.time()
         print('Time elapsed for epoch {}: {:.0f}s'.format(epoch + 1, end_time - start_time))
 
-    if not leave_one_out:
-        validate('final validation', config, device, val_loader, model, loss_function, reg_function)
+    validate('final validation', config, device, val_loader, model, loss_function, reg_function)
 
     if wandb_enabled:
         wandb.finish()

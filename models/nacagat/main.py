@@ -10,7 +10,7 @@ import torch.optim.lr_scheduler as lrs
 
 from torch.utils.data import DataLoader
 from sksurv.metrics import concordance_index_censored
-from models.loss import CrossEntropySurvivalLoss, SurvivalClassificationTobitLoss
+from models.loss import CrossEntropySurvivalLoss, SurvivalClassificationTobitLoss, CrossEntropySurvivalAttnRegLoss
 from models.utils import l1_reg
 from nacagat import NarrowContextualAttentionGateTransformer
 from dataset.dataset import MultimodalDataset
@@ -23,6 +23,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
     lambda_reg = config['training']['lambda']
     checkpoint_epoch = config['model']['checkpoint_epoch']
     train_loss = 0.0
+    train_attn_loss = 0.0
     risk_scores = torch.zeros(len(train_loader), device=device)
     censorships = torch.zeros(len(train_loader), device=device)
     event_times = torch.zeros(len(train_loader), device=device)
@@ -38,15 +39,19 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
         omics_data = [omic_data.to(device) for omic_data in omics_data]
         hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
 
+        attn_loss = torch.tensor([0])
         if config['training']['loss'] == 'ce':
             loss = loss_function(Y, survival_class.long())
         elif config['training']['loss'] == 'ces':
             loss = loss_function(hazards, survs, survival_class, c=censorship)
         elif config['training']['loss'] == 'sct':
             loss = loss_function(Y, survival_class, c=censorship)
+        elif config['training']['loss'] == 'cesar':
+            loss, attn_loss = loss_function(hazards, survs, survival_class, c=censorship, attention=attention_scores['coattn'])
         else:
             raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
         loss_value = loss.item()
+        attn_loss_value = attn_loss.item()
 
         if reg_function is None:
             loss_reg = 0
@@ -59,10 +64,11 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
         event_times[batch_index] = survival_months
 
         train_loss += loss_value + loss_reg
+        train_attn_loss += attn_loss_value
 
         if (batch_index + 1) % 50 == 0:
-            print('\tbatch: {}, loss: {:.4f}, label: {}, survival_months: {:.2f}, risk: {:.4f}'.format(
-                batch_index, loss_value + loss_reg, survival_class.item(), survival_months.item(), float(risk.item())))
+            print('\tbatch: {}, loss: {:.4f}, attn_loss: {:.4f}, label: {}, survival_months: {:.2f}, risk: {:.4f}'.format(
+                batch_index, loss_value + loss_reg, attn_loss_value, survival_class.item(), survival_months.item(), float(risk.item())))
             end_batch_time = time.time()
             print('\t\taverage speed: {:.2f}s per batch'.format((end_batch_time - start_batch_time) / 32))
             start_batch_time = time.time()
@@ -75,6 +81,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
 
     # Calculate loss and error for epoch
     train_loss /= len(train_loader)
+    train_attn_loss /= len(train_loader)
     risk_scores = risk_scores.detach().cpu().numpy()
     censorships = censorships.detach().cpu().numpy()
     event_times = event_times.detach().cpu().numpy()
@@ -82,9 +89,11 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
     if use_scheduler:
         lr = optimizer.param_groups[0]["lr"]
         scheduler.step()
-        print('Epoch: {}, lr: {:.8f}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch + 1, lr, train_loss, c_index))
+        print('Epoch: {}, lr: {:.8f}, train_loss: {:.4f}, train_attn_loss: {:.4f}, train_c_index: {:.4f}'.format(
+            epoch + 1, lr, train_loss, train_attn_loss, c_index))
     else:
-        print('Epoch: {}, train_loss: {:.4f}, train_c_index: {:.4f}'.format(epoch + 1, train_loss, c_index))
+        print('Epoch: {}, train_loss: {:.4f}, train_attn_loss: {:.4f}, train_c_index: {:.4f}'.format(
+            epoch + 1, train_loss, train_attn_loss, c_index))
     if checkpoint_epoch > 0:
         if (epoch + 1) % checkpoint_epoch == 0 and epoch != 0:
             now = datetime.datetime.now().strftime('%Y%m%d%H%M')
@@ -127,6 +136,8 @@ def validate(epoch, config, device, val_loader, model, loss_function, reg_functi
             loss = loss_function(hazards, survs, survival_class, c=censorship)
         elif config['training']['loss'] == 'sct':
             loss = loss_function(Y, survival_class, c=censorship)
+        elif config['training']['loss'] == 'cesar':
+            loss, _ = loss_function(hazards, survs, survival_class, c=censorship, attention=attention_scores['coattn'])
         else:
             raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
         loss_value = loss.item()
@@ -241,14 +252,13 @@ def main(config_path: str):
     train_size = config['training']['train_size']
     print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')
     test_patient = config['training']['leave_one_out']
-    print(f'Test patient: {test_patient}')
     train_dataset, val_dataset, test_dataset = dataset.split(train_size, test=leave_one_out, patient=test_patient)
     print(f'Samples in train: {len(train_dataset)}, Samples in validation: {len(val_dataset)}')
     if test_dataset is not None:
         print(f'Testing patient {test_patient}')
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
-    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=2, pin_memory=True)
     output_attn_epoch = config['training']['output_attn_epoch']
     # Model
     model_size = config['model']['model_size']
@@ -277,6 +287,9 @@ def main(config_path: str):
     elif config['training']['loss'] == 'sct':
         print('Using SurvivalClassificationTobitLoss during training')
         loss_function = SurvivalClassificationTobitLoss()
+    elif config['training']['loss'] == 'cesar':
+        print('Using CrossEntropySurvivalAttnRegLoss during training')
+        loss_function = CrossEntropySurvivalAttnRegLoss()
     else:
         raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
     # Optimizer

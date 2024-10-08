@@ -3,7 +3,6 @@ import torch
 
 
 class CrossEntropySurvivalLoss:
-
     def __init__(self, alpha=0.75, eps=1e-7):
         self.alpha = alpha
         self.eps = eps
@@ -86,6 +85,22 @@ class SurvivalClassificationTobitLoss:
         return loss
 
 
+class CrossEntropySurvivalAttnRegLoss:
+    def __init__(self, alpha=0.75, eps=1e-7, lambda_reg=0.01):
+        self.alpha = alpha
+        self.eps = eps
+        self.lambda_reg = lambda_reg
+        self.ces = CrossEntropySurvivalLoss(self.alpha, self.eps)
+
+    def __call__(self, hazards, S, Y, c, attention):
+        loss = self.ces(hazards, S, Y, c)
+        attn_loss = self.lambda_reg * torch.norm(attention, p=2)
+
+        loss = loss + attn_loss
+        loss = loss.mean()
+        return loss, attn_loss
+
+
 def test_ces_loss():
     print('Testing CrossEntropySurvivalLoss...')
     loss_function = CrossEntropySurvivalLoss()
@@ -154,5 +169,21 @@ def test_sct_loss():
 
     loss = loss_function(Y_pred, Y, c)
     print(f'[7] Loss: {loss.item()}\t\t(should be lower than previous, because censored and guess is not far from label)')
+
+    print('Test successful')
+
+
+def test_cesar_loss():
+    print('Testing CrossEntropySurvivalAttnRegLoss...')
+    loss_function = CrossEntropySurvivalAttnRegLoss()
+
+    hazards = torch.tensor([0.51, 0.52, 0.49, 0.48]).reshape((1, 4))
+    S = torch.tensor([0.5, 0.4, 0.2, 0.1]).reshape((1, 4))
+    Y = torch.tensor([0])
+    c = torch.tensor([0.0])
+    attention = torch.rand(6, 10, 10)
+
+    loss = loss_function(hazards, S, Y, c, attention)
+    print(f'[1] Loss: {loss.item()}')
 
     print('Test successful')

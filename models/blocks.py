@@ -201,7 +201,7 @@ class MultiheadAttention(nn.Module):
             else:
                 query, key, value = (x.transpose(1, 0) for x in (query, key, value))
 
-        # THIS ONE IS CALLED
+        # THIS ONE
         q_hat, attn_output, attn_output_weights = multi_head_attention_forward(
             query, key, value, self.embed_dim, self.num_heads,
             self.in_proj_weight, self.in_proj_bias,
@@ -407,8 +407,9 @@ def multi_head_attention_forward(
             attn_output_weights = torch.baddbmm(attn_mask, q_scaled, k.transpose(-2, -1))
         else:
             attn_output_weights = torch.bmm(q_scaled, k.transpose(-2, -1))
-        P = (torch.matmul(torch.tanh(q), torch.tanh(k.transpose(-2, -1))) + 1) / 2
-        attn_output_weights = attn_output_weights + P
+        P = torch.matmul(torch.tanh(q), torch.tanh(k.transpose(-2, -1))) + 1
+        P = torch.sigmoid(P) / 2
+        attn_output_weights = attn_output_weights * P
         attn_output_weights = softmax(attn_output_weights, dim=-1)
         if dropout_p > 0.0:
             attn_output_weights = dropout(attn_output_weights, p=dropout_p)

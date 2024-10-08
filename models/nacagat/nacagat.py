@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models.blocks import AttentionNetGated, PreGatingContextualAttentionGate, MultiheadAttention
+from models.blocks import AttentionNetGated, PreGatingContextualAttention
 from models.fusion import BilinearFusion, ConcatFusion, GatedConcatFusion
 
 
@@ -41,11 +41,7 @@ class NarrowContextualAttentionGateTransformer(nn.Module):
             omic_encoders.append(fc)
         self.G = nn.ModuleList(omic_encoders)
 
-        # Pre-gating and Contextual Attention Gate
-        self.co_attention = PreGatingContextualAttentionGate(dim1=self.model_sizes[1], dim2=self.model_sizes[1],
-                                                             dk=self.model_sizes[1], output_dim=self.model_sizes[1]).to(device=device)
-
-        self.co_attention = MultiheadAttention(embed_dim=self.model_sizes[1], num_heads=1)
+        self.co_attention = PreGatingContextualAttention(embed_dim=self.model_sizes[1], num_heads=1)
 
         # Path Transformer (T_H)
         path_encoder_layer = nn.TransformerEncoderLayer(d_model=self.model_sizes[1], nhead=8, dim_feedforward=512, dropout=dropout,
@@ -94,8 +90,7 @@ class NarrowContextualAttentionGateTransformer(nn.Module):
         # Co-Attention results
         # H_coattn: Genomic-Guided WSI-level Embeddings (Nxd_k)
         # A_coattn: Co-Attention Matrix (NxM)
-        # H_coattn, A_coattn = self.co_attention(x1=H_bag, x2=G_bag) TODO
-        H_coattn, A_coattn = self.co_attention(query=G_bag, key=H_bag, value=H_bag, need_weights=True)
+        H_coattn, A_coattn = self.co_attention(query=G_bag, key=H_bag, value=H_bag)
 
         # Set-Based MIL Transformers
         # Attention is permutation-equivariant, so dimensions are the same (Nxd_k)

@@ -249,7 +249,7 @@ def main(config_path: str):
         print(f'Testing patient {test_patient}')
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
-    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=2, pin_memory=True)
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=2, pin_memory=True)
     output_attn_epoch = config['training']['output_attn_epoch']
     # Model
     model_size = config['model']['model_size']

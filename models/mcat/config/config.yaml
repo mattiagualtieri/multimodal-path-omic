@@ -4,10 +4,10 @@ dataset:
   name: DECIDER-OV
   file: /work/h2020deciderficarra_shared/mgualtieri/ov/decider_ov.csv
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
-  signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
+  signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/ccne1.csv
   decider_only: True
   normalize: False
-  standardize: True
+  standardize: False
 model:
   name: MCAT
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt

@@ -185,11 +185,12 @@ def test(config, device, epoch, val_loader, model, patient, save=False):
 
 def wandb_init(config):
     wandb.init(
-        project='MCAT',
+        project=config['wandb']['project'],
         settings=wandb.Settings(
             init_timeout=300,
         ),
         config={
+            'model': config['model']['name'],
             'dataset': config['dataset']['name'],
             'optimizer': config['training']['optimizer'],
             'learning_rate': config['training']['lr'],
@@ -215,7 +216,7 @@ def main(config_path: str):
     with open(config_path) as config_file:
         config = yaml.load(config_file, Loader=yaml.FullLoader)
 
-    wandb_enabled = config['wandb_enabled']
+    wandb_enabled = config['wandb']['enabled']
     if wandb_enabled:
         print('Setting up wandb for report')
         os.environ['WANDB__SERVICE_WAIT'] = '300'

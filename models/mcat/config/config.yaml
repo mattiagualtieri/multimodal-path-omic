@@ -1,5 +1,7 @@
 device: cuda
-wandb_enabled: True
+wandb:
+  enabled: True
+  project: CCNE1
 dataset:
   name: DECIDER-OV
   file: /work/h2020deciderficarra_shared/mgualtieri/ov/decider_ov.csv

@@ -98,7 +98,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': train_loss,
             }, checkpoint_path)
-    wandb_enabled = config['wandb_enabled']
+    wandb_enabled = config['wandb']['enabled']
     if wandb_enabled:
         wandb.log({"train_loss": train_loss, "train_c_index": c_index})
 
@@ -150,7 +150,7 @@ def validate(epoch, config, device, val_loader, model, loss_function, reg_functi
         print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch, val_loss, c_index))
     else:
         print('Epoch: {}, val_loss: {:.4f}, val_c_index: {:.4f}'.format(epoch + 1, val_loss, c_index))
-    wandb_enabled = config['wandb_enabled']
+    wandb_enabled = config['wandb']['enabled']
     if wandb_enabled:
         wandb.log({"val_loss": val_loss, "val_c_index": c_index})
 

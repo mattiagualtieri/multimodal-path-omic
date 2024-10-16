@@ -16,9 +16,9 @@ model:
   checkpoint_epoch: 20  # 0 if saving is not necessary
   checkpoint_dir: checkpoints/
   fusion: concat # concat, gated_concat, bilinear
-  model_size: small
+  model_size: medium
 training:
-  leave_one_out: D329
+  leave_one_out: D328
   output_attn_epoch: 5
   test_output_dir: outputs/
   train_size: 0.8

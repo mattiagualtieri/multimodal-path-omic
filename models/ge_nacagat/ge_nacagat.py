@@ -118,7 +118,7 @@ class GeneExprNarrowContextualAttentionGateTransformer(nn.Module):
         # output: classifier output (regression)
         # size   --> (1)
         # domain --> R
-        output = self.classifier(h).unsqueeze(0)
+        output = self.classifier(h)
 
         attention_scores = {'coattn': A_coattn, 'path': A_path, 'omic': A_omic}
 

@@ -55,11 +55,6 @@ class MultimodalGeneExprPredDataset(Dataset):
         print(f'Testing gene expression: {gene}')
         self.gene_expr_value = self.data[f'{gene}_rnaseq']
 
-        # Prova con norm tra 0 e 10
-        min_val = self.gene_expr_value.min()
-        max_val = self.gene_expr_value.max()
-        self.gene_expr_value = 10 * (self.gene_expr_value - min_val) / (max_val - min_val)
-
         self.data = self.data.drop(f'{gene}_rnaseq', axis=1)
 
         # RNA

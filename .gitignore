@@ -9,3 +9,4 @@ logs
 outputs
 *.pt
 config_test.yaml
+checkpoints

@@ -10,7 +10,7 @@ from scipy import stats
 
 
 class MultimodalDataset(Dataset):
-    def __init__(self, file: str, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, inference=False, standardize=True, normalize=True):
+    def __init__(self, file: str, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, standardize=True, normalize=True):
         self.data = pd.read_csv(file)
 
         if config['dataset']['decider_only']:
@@ -18,10 +18,7 @@ class MultimodalDataset(Dataset):
             self.data = self.data.loc[self.data['is_decider'] == 1.0]
             self.data.reset_index(drop=True, inplace=True)
 
-        if inference:
-            self.patches_dir = config['inference']['dataset']['patches_dir']
-        else:
-            self.patches_dir = config['dataset']['patches_dir']
+        self.patches_dir = config['dataset']['patches_dir']
         if self.patches_dir is None:
             self.patches_dir = ''
 
@@ -77,17 +74,16 @@ class MultimodalDataset(Dataset):
             self.rnaseq = (self.rnaseq - self.rnaseq.mean()) / self.rnaseq.std()
         if normalize:
             self.rnaseq = 2 * (self.rnaseq - self.rnaseq.min()) / (self.rnaseq.max() - self.rnaseq.min()) - 1
-        # print(f'RNA data size: {self.rnaseq_size}')
         self.rnaseq = torch.tensor(self.rnaseq.values, dtype=torch.float32)
+
         # CNV
         self.cnv = self.data.iloc[:, self.data.columns.str.endswith('_cnv')].astype(float)
         self.cnv_size = len(self.cnv.columns)
-        # print(f'CNV data size: {self.cnv_size}')
         self.cnv = torch.tensor(self.cnv.values, dtype=torch.float32)
+
         # MUT
         self.mut = self.data.iloc[:, self.data.columns.str.endswith('_mut')].astype(float)
         self.mut_size = len(self.mut.columns)
-        # print(f'MUT data size: {self.mut_size}')
         self.mut = torch.tensor(self.mut.values, dtype=torch.float32)
 
         # Signatures
@@ -95,10 +91,7 @@ class MultimodalDataset(Dataset):
         if self.use_signatures:
             self.signature_sizes = []
             self.signature_data = {}
-            if inference:
-                signatures_file = config['inference']['dataset']['signatures']
-            else:
-                signatures_file = config['dataset']['signatures']
+            signatures_file = config['dataset']['signatures']
             signatures_df = pd.read_csv(signatures_file)
             self.signatures = signatures_df.columns
             for signature_name in self.signatures:

@@ -354,13 +354,13 @@ def main(config_path: str):
 
 
 if __name__ == '__main__':
-    print(f'[{datetime.datetime.now().strftime("%d/%m/%Y - %H:%M")}] NaCAGAT main started')
+    print(f'[{datetime.datetime.now().strftime("%d/%m/%Y - %H:%M")}] NaCAGaT main started')
     main('config/config.yaml')
-    print(f'[{datetime.datetime.now().strftime("%d/%m/%Y - %H:%M")}] NaCAGAT main finished')
+    print(f'[{datetime.datetime.now().strftime("%d/%m/%Y - %H:%M")}] NaCAGaT main finished')
 
 
 def test_main():
-    print('Testing NaCAGAT main...')
+    print('Testing NaCAGaT main...')
 
     main('config/config_test.yaml')
 

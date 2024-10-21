@@ -1,7 +1,7 @@
 device: cuda
 wandb:
   enabled: True
-  project: CCNE1
+  project: NaCAGATv2
 dataset:
   name: TCGA-BLCA
   file: /work/h2020deciderficarra_shared/mgualtieri/blca/blca.csv

@@ -1,15 +1,15 @@
 device: cuda
 wandb:
   enabled: True
-  project: NaCAGATv2
+  project: EMT
 dataset:
-  name: TCGA-BLCA
-  file: /work/h2020deciderficarra_shared/mgualtieri/blca/blca.csv
-  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/blca/slides/
-  signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
-  decider_only: False
+  name: DECIDER-OV
+  file: /work/h2020deciderficarra_shared/mgualtieri/ov/decider_ov.csv
+  patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
+  signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/emt.csv
+  decider_only: True
   normalize: False
-  standardize: False
+  standardize: True
 model:
   name: NaCAGaT
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt
@@ -18,7 +18,7 @@ model:
   fusion: concat # concat, gated_concat, bilinear
   model_size: medium
 training:
-  leave_one_out: ~
+  leave_one_out: D311
   output_attn_epoch: 5
   test_output_dir: outputs/
   train_size: 0.8

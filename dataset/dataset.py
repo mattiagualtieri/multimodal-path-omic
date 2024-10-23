@@ -62,6 +62,14 @@ class MultimodalDataset(Dataset):
         self.survival_class = self.data['survival_class'].values
         self.censorship = self.data['censorship'].values
 
+        rnaseq_columns = [col for col in self.data.columns if col.endswith('_rnaseq')]
+        if standardize:
+            for col in rnaseq_columns:
+                self.data[col] = (self.data[col] - self.data[col].mean()) / self.data[col].std()
+        if normalize:
+            for col in rnaseq_columns:
+                self.data[col] = 2 * (self.data[col] - self.data[col].min()) / (self.data[col].max() - self.data[col].min()) - 1
+
         # RNA
         self.rnaseq = self.data.iloc[:, self.data.columns.str.endswith('_rnaseq')].astype(float)
         if top_rnaseq is not None:
@@ -70,10 +78,6 @@ class MultimodalDataset(Dataset):
             sort_idx = np.argsort(mad)[-top_rnaseq:]
             self.rnaseq = rnaseq[rnaseq.columns[sort_idx]]
         self.rnaseq_size = len(self.rnaseq.columns)
-        if standardize:
-            self.rnaseq = (self.rnaseq - self.rnaseq.mean()) / self.rnaseq.std()
-        if normalize:
-            self.rnaseq = 2 * (self.rnaseq - self.rnaseq.min()) / (self.rnaseq.max() - self.rnaseq.min()) - 1
         self.rnaseq = torch.tensor(self.rnaseq.values, dtype=torch.float32)
 
         # CNV
@@ -308,5 +312,26 @@ def test_multimodal_dataset_split():
     loader = DataLoader(train_split, batch_size=1, shuffle=False, num_workers=0, pin_memory=False)
     for batch_index, (survival_months, survival_class, censorship, omics_data, patches_embeddings) in enumerate(loader):
         pass
+
+    print('Test successful')
+
+
+def test_std():
+    print('Testing MultimodalDataset Standardization...')
+
+    config = {
+        'dataset': {
+            'file': '../input/ov/decider_ov.csv',
+            'patches_dir': '../input/ov/patches/',
+            'signatures': '../input/signatures.csv',
+            'decider_only': True
+        }
+    }
+
+    dataset = MultimodalDataset(config['dataset']['file'], config, standardize=True, normalize=False,
+                                use_signatures=True,
+                                remove_incomplete_samples=False)
+    dataset.split(0.5)
+    assert dataset is not None
 
     print('Test successful')

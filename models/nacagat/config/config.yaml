@@ -6,7 +6,7 @@ dataset:
   name: DECIDER-OV
   file: /work/h2020deciderficarra_shared/mgualtieri/ov/decider_ov.csv
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
-  signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/emt.csv
+  signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/ccne1.csv
   decider_only: True
   normalize: True
   standardize: False

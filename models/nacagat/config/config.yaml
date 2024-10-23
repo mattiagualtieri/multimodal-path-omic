@@ -8,8 +8,8 @@ dataset:
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/emt.csv
   decider_only: True
-  normalize: True
-  standardize: False
+  normalize: False
+  standardize: True
 model:
   name: NaCAGaT
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt

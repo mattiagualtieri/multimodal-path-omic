@@ -159,6 +159,7 @@ def test(config, device, epoch, val_loader, model, patient, save=False):
     model.inference = True
     model.eval()
     output_dir = config['training']['test_output_dir']
+    model_name = config['model']['name']
     now = datetime.datetime.now().strftime('%Y%m%d%H%M')
     for batch_index, (survival_months, survival_class, censorship, omics_data, patches_embeddings) in enumerate(
             val_loader):
@@ -178,7 +179,7 @@ def test(config, device, epoch, val_loader, model, patient, save=False):
                   f'mean: {attention_scores["coattn"].mean()}')
 
             if save:
-                output_file = os.path.join(output_dir, f'ATTN_{patient}_{now}_E{epoch}_{batch_index}.pt')
+                output_file = os.path.join(output_dir, f'ATTN_{model_name}_{patient}_{now}_E{epoch}_{batch_index}.pt')
                 print(f'Saving attention in {output_file}')
                 torch.save(attention_scores['coattn'], output_file)
 

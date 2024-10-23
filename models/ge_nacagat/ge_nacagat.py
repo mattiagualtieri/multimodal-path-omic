@@ -7,7 +7,7 @@ from models.fusion import BilinearFusion, ConcatFusion, GatedConcatFusion
 
 
 class GeneExprNarrowContextualAttentionGateTransformer(nn.Module):
-    def __init__(self, omic_sizes: [], model_size: str = 'medium', dropout: float = 0.25, fusion: str = 'concat', device: str = 'cpu'):
+    def __init__(self, omic_sizes: [], model_size: str = 'medium', n_classes: int = 3, dropout: float = 0.25, fusion: str = 'concat', device: str = 'cpu'):
         super(GeneExprNarrowContextualAttentionGateTransformer, self).__init__()
         if model_size == 'small':
             self.model_sizes = [128, 128]
@@ -74,7 +74,7 @@ class GeneExprNarrowContextualAttentionGateTransformer(nn.Module):
             raise RuntimeError(f'Fusion mechanism {self.fusion} not implemented')
 
         # Classifier
-        self.classifier = nn.Linear(self.model_sizes[1], 1)
+        self.classifier = nn.Linear(self.model_sizes[1], n_classes)
 
     def forward(self, wsi, omics):
         # WSI Fully connected layer
@@ -115,14 +115,15 @@ class GeneExprNarrowContextualAttentionGateTransformer(nn.Module):
 
         # Survival Layer
 
-        # output: classifier output (regression)
-        # size   --> (1)
+        # logits: classifier output
+        # size   --> (1, 3)
         # domain --> R
-        output = self.classifier(h)
+        logits = self.classifier(h)
+        Y = F.softmax(logits)
 
         attention_scores = {'coattn': A_coattn, 'path': A_path, 'omic': A_omic}
 
-        return output, attention_scores
+        return Y, attention_scores
 
     def get_trainable_parameters(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
@@ -140,8 +141,8 @@ def test_ge_nacagat():
     for model_size in model_sizes:
         print(f'Size {model_size}')
         model = GeneExprNarrowContextualAttentionGateTransformer(omic_sizes=omic_sizes, model_size=model_size)
-        output, attention_scores = model(wsi, omics)
-        assert output.shape[0] == 1
+        Y, attention_scores = model(wsi, omics)
+        assert Y.shape[0] == 3
         assert attention_scores['coattn'].shape[0] == len(omic_sizes)
         assert attention_scores['coattn'].shape[1] == 3000
         assert attention_scores['path'].shape[0] == attention_scores['omic'].shape[0] == 1

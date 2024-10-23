@@ -52,10 +52,28 @@ class MultimodalGeneExprPredDataset(Dataset):
             self.data.reset_index(drop=True, inplace=True)
             print(f'Remaining samples after removing incomplete: {len(self.data)}')
 
+        self.data.dropna(axis=1, inplace=True)
+
         print(f'Testing gene expression: {gene}')
         self.gene_expr_value = self.data[f'{gene}_rnaseq']
-
         self.data = self.data.drop(f'{gene}_rnaseq', axis=1)
+        n_classes = 3
+        gene_expr_class, class_intervals = pd.qcut(self.gene_expr_value, q=n_classes, retbins=True, labels=False)
+        self.data['gene_expr_class'] = gene_expr_class
+        print('Class intervals: [')
+        for i in range(0, n_classes):
+            print('\t{}: [{:.2f} - {:.2f}]'.format(i, class_intervals[i], class_intervals[i + 1]))
+        print(']')
+
+        self.gene_expr_class = self.data['gene_expr_class'].values
+
+        rnaseq_columns = [col for col in self.data.columns if col.endswith('_rnaseq')]
+        if standardize:
+            for col in rnaseq_columns:
+                self.data[col] = (self.data[col] - self.data[col].mean()) / self.data[col].std()
+        if normalize:
+            for col in rnaseq_columns:
+                self.data[col] = 2 * (self.data[col] - self.data[col].min()) / (self.data[col].max() - self.data[col].min()) - 1
 
         # RNA
         self.rnaseq = self.data.iloc[:, self.data.columns.str.endswith('_rnaseq')].astype(float)
@@ -69,17 +87,16 @@ class MultimodalGeneExprPredDataset(Dataset):
             self.rnaseq = (self.rnaseq - self.rnaseq.mean()) / self.rnaseq.std()
         if normalize:
             self.rnaseq = 2 * (self.rnaseq - self.rnaseq.min()) / (self.rnaseq.max() - self.rnaseq.min()) - 1
-        # print(f'RNA data size: {self.rnaseq_size}')
         self.rnaseq = torch.tensor(self.rnaseq.values, dtype=torch.float32)
+
         # CNV
         self.cnv = self.data.iloc[:, self.data.columns.str.endswith('_cnv')].astype(float)
         self.cnv_size = len(self.cnv.columns)
-        # print(f'CNV data size: {self.cnv_size}')
         self.cnv = torch.tensor(self.cnv.values, dtype=torch.float32)
+
         # MUT
         self.mut = self.data.iloc[:, self.data.columns.str.endswith('_mut')].astype(float)
         self.mut_size = len(self.mut.columns)
-        # print(f'MUT data size: {self.mut_size}')
         self.mut = torch.tensor(self.mut.values, dtype=torch.float32)
 
         # Signatures
@@ -107,7 +124,7 @@ class MultimodalGeneExprPredDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        gene_expr_value = self.gene_expr_value[index]
+        gene_expr_class = self.gene_expr_class[index]
 
         if not self.use_h5_dataset:
             slide_name = self.data['slide_id'][index].replace('.svs', '.pt')
@@ -128,7 +145,7 @@ class MultimodalGeneExprPredDataset(Dataset):
                 signature_data = self.signature_data[signature][index]
                 omics_data.append(signature_data)
 
-        return gene_expr_value, omics_data, patches_embeddings
+        return gene_expr_class, omics_data, patches_embeddings
 
     def split(self, train_size, test: bool = False, patient: str = ''):
         # Ensure train_size is a valid ratio
@@ -194,7 +211,7 @@ class MultimodalGeneExprPredDataset(Dataset):
             instance.h5_file = h5py.File(instance.h5_dataset, 'r')
 
         # Copy RNA, CNV, and MUT data with the new subset of data
-        instance.gene_expr_value = original_instance.gene_expr_value
+        instance.gene_expr_class = original_instance.gene_expr_class
 
         # RNA
         rnaseq = df.iloc[:, df.columns.str.endswith('_rnaseq')].astype(float)

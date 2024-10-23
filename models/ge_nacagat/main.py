@@ -21,16 +21,16 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
     checkpoint_epoch = config['model']['checkpoint_epoch']
     train_loss = 0.0
     start_batch_time = time.time()
-    for batch_index, (gene_expr_value, omics_data, patches_embeddings) in enumerate(
+    for batch_index, (gene_expr_class, omics_data, patches_embeddings) in enumerate(
             train_loader):
 
-        gene_expr_value = gene_expr_value.type(torch.FloatTensor).to(device, non_blocking=True)
+        gene_expr_class = gene_expr_class.to(device, non_blocking=True)
         patches_embeddings = patches_embeddings.to(device)
         omics_data = [omic_data.to(device) for omic_data in omics_data]
-        output, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
+        Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
 
-        if config['training']['loss'] == 'mse':
-            loss = loss_function(output, gene_expr_value)
+        if config['training']['loss'] == 'ce':
+            loss = loss_function(Y.unsqueeze(0), gene_expr_class)
         else:
             raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
         loss_value = loss.item()
@@ -44,7 +44,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
 
         if (batch_index + 1) % 50 == 0:
             print('\tbatch: {}, loss: {:.4f}, gene_expr_value: {:.4f}, prediction: {:.4f}'.format(
-                batch_index, loss_value + loss_reg, gene_expr_value.item(), output.item()))
+                batch_index, loss_value + loss_reg, gene_expr_class.item(), Y))
             end_batch_time = time.time()
             print('\t\taverage speed: {:.2f}s per batch'.format((end_batch_time - start_batch_time) / 32))
             start_batch_time = time.time()
@@ -86,16 +86,18 @@ def validate(epoch, config, device, val_loader, model, loss_function, reg_functi
     model.eval()
     val_loss = 0.0
     lambda_reg = config['training']['lambda']
-    for batch_index, (gene_expr_value, omics_data, patches_embeddings) in enumerate(
+    for batch_index, (gene_expr_class, omics_data, patches_embeddings) in enumerate(
             val_loader):
-        gene_expr_value = gene_expr_value.type(torch.FloatTensor).to(device)
+
+        gene_expr_class = gene_expr_class.to(device, non_blocking=True)
+        gene_expr_class = gene_expr_class.unsqueeze(0).to(torch.int64)
         patches_embeddings = patches_embeddings.to(device)
         omics_data = [omic_data.to(device) for omic_data in omics_data]
         with torch.no_grad():
-            output, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
+            Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
 
-        if config['training']['loss'] == 'mse':
-            loss = loss_function(output, gene_expr_value)
+        if config['training']['loss'] == 'ce':
+            loss = loss_function(Y, gene_expr_class.long())
         else:
             raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
         loss_value = loss.item()
@@ -122,16 +124,17 @@ def test(config, device, epoch, val_loader, model, patient, save=False):
     model.eval()
     output_dir = config['training']['test_output_dir']
     now = datetime.datetime.now().strftime('%Y%m%d%H%M')
-    for batch_index, (gene_expr_value, omics_data, patches_embeddings) in enumerate(
+    for batch_index, (gene_expr_class, omics_data, patches_embeddings) in enumerate(
             val_loader):
 
-        gene_expr_value = gene_expr_value.type(torch.FloatTensor).to(device)
+        gene_expr_class = gene_expr_class.to(device, non_blocking=True)
+        gene_expr_class = gene_expr_class.unsqueeze(0).to(torch.int64)
         patches_embeddings = patches_embeddings.to(device)
         omics_data = [omic_data.to(device) for omic_data in omics_data]
-        print(f'[{batch_index}] Gene Expression Value: {gene_expr_value.item()}')
+        print(f'[{batch_index}] Gene Expression Class: {gene_expr_class.item()}')
         with torch.no_grad():
-            output, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
-            print(f'Prediction: {output.item()}')
+            Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
+            print(f'Prediction: {Y}')
             print(f'Attn min: {attention_scores["coattn"].min()}, Attn max: {attention_scores["coattn"].max()}, Attn '
                   f'mean: {attention_scores["coattn"].mean()}')
 
@@ -226,11 +229,10 @@ def main(config_path: str):
     if device == 'cuda' and torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
     model.to(device=device)
-    alpha = config['training']['alpha']
     # Loss function
-    if config['training']['loss'] == 'mse':
-        print('Using MSELoss during training')
-        loss_function = nn.MSELoss()
+    if config['training']['loss'] == 'ce':
+        print('Using CrossEntropyLoss during training')
+        loss_function = nn.CrossEntropyLoss()
     else:
         raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
     # Optimizer

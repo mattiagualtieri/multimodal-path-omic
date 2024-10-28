@@ -162,7 +162,6 @@ def wandb_init(config):
             'fusion': config['model']['fusion'],
             'loss': config['training']['loss'],
             'scheduler': config['training']['scheduler'],
-            'alpha': config['training']['alpha'],
             'lambda': config['training']['lambda'],
             'gamma': config['training']['gamma'],
             'model_size': config['model']['model_size'],

@@ -9,7 +9,7 @@ dataset:
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
   decider_only: True
   normalize: False
-  standardize: False
+  standardize: True
 model:
   name: GeneExpr-NaCAGaT
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt

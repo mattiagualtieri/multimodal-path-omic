@@ -43,7 +43,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
         train_loss += loss_value + loss_reg
 
         if (batch_index + 1) % 50 == 0:
-            print('\tbatch: {}, loss: {:.4f}, gene_expr_value: {:.4f}, prediction: {:.4f}'.format(
+            print('\tbatch: {}, loss: {:.4f}, gene_expr_value: {:.4f}, prediction: {}'.format(
                 batch_index, loss_value + loss_reg, gene_expr_class.item(), Y))
             end_batch_time = time.time()
             print('\t\taverage speed: {:.2f}s per batch'.format((end_batch_time - start_batch_time) / 32))

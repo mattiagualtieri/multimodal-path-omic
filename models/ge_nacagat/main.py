@@ -28,6 +28,7 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
         patches_embeddings = patches_embeddings.to(device)
         omics_data = [omic_data.to(device) for omic_data in omics_data]
         Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
+        prediction = torch.argmax(Y)
 
         if config['training']['loss'] == 'ce':
             loss = loss_function(Y.unsqueeze(0), gene_expr_class)
@@ -43,8 +44,8 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
         train_loss += loss_value + loss_reg
 
         if (batch_index + 1) % 50 == 0:
-            print('\tbatch: {}, loss: {:.4f}, gene_expr_value: {:.4f}, prediction: {}'.format(
-                batch_index, loss_value + loss_reg, gene_expr_class.item(), Y))
+            print('\tbatch: {}, loss: {:.4f}, gene_expr_class: {}, prediction: {}'.format(
+                batch_index, loss_value + loss_reg, gene_expr_class.item(), prediction))
             end_batch_time = time.time()
             print('\t\taverage speed: {:.2f}s per batch'.format((end_batch_time - start_batch_time) / 32))
             start_batch_time = time.time()
@@ -97,7 +98,7 @@ def validate(epoch, config, device, val_loader, model, loss_function, reg_functi
             Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
 
         if config['training']['loss'] == 'ce':
-            loss = loss_function(Y, gene_expr_class.long())
+            loss = loss_function(Y.unsqueeze(0), gene_expr_class)
         else:
             raise RuntimeError(f'Loss "{config["training"]["loss"]}" not implemented')
         loss_value = loss.item()

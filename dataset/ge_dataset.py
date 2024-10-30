@@ -52,8 +52,6 @@ class MultimodalGeneExprPredDataset(Dataset):
             self.data.reset_index(drop=True, inplace=True)
             print(f'Remaining samples after removing incomplete: {len(self.data)}')
 
-        self.data.dropna(axis=1, inplace=True)
-
         print(f'Testing gene expression: {gene}')
         self.gene_expr_value = self.data[f'{gene}_rnaseq']
         self.data = self.data.drop(f'{gene}_rnaseq', axis=1)
@@ -117,6 +115,7 @@ class MultimodalGeneExprPredDataset(Dataset):
                     if gene in self.data.columns:
                         columns[gene] = self.data[gene]
                 self.signature_data[signature_name] = torch.tensor(pd.DataFrame(columns).values, dtype=torch.float32)
+                self.signature_data[signature_name] = self.signature_data[signature_name].nan_to_num(0)
                 self.signature_sizes.append(self.signature_data[signature_name].shape[1])
             print(f'Signatures size: {self.signature_sizes}')
 

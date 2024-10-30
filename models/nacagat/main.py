@@ -203,6 +203,11 @@ def wandb_init(config):
         config={
             'model': config['model']['name'],
             'dataset': config['dataset']['name'],
+            'normalization': config['dataset']['normalize'],
+            'standardization': config['dataset']['standardize'],
+            'decider_only': config['dataset']['decider_only'],
+            'tcga_only': config['dataset']['tcga_only'],
+            'diagnostic_only': config['dataset']['diagnostic_only'],
             'optimizer': config['training']['optimizer'],
             'learning_rate': config['training']['lr'],
             'weight_decay': config['training']['weight_decay'],
@@ -216,8 +221,6 @@ def wandb_init(config):
             'lambda': config['training']['lambda'],
             'gamma': config['training']['gamma'],
             'model_size': config['model']['model_size'],
-            'normalization': config['dataset']['normalize'],
-            'standardization': config['dataset']['standardize'],
             'leave_one_out': config['training']['leave_one_out']
         }
     )
@@ -246,10 +249,7 @@ def main(config_path: str):
 
     # Dataset
     file_csv = config['dataset']['file']
-    normalize = config['dataset']['normalize']
-    standardize = config['dataset']['standardize']
-    print(f'Normalization: {normalize}, Standardization: {standardize}')
-    dataset = MultimodalDataset(file_csv, config, use_signatures=True, normalize=normalize, standardize=standardize)
+    dataset = MultimodalDataset(file_csv, config, use_signatures=True)
     leave_one_out = config['training']['leave_one_out'] is not None
     train_size = config['training']['train_size']
     print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')

@@ -10,12 +10,20 @@ from scipy import stats
 
 
 class MultimodalDataset(Dataset):
-    def __init__(self, file: str, config, use_signatures=False, top_rnaseq=None, remove_incomplete_samples=True, standardize=True, normalize=True):
+    def __init__(self, file: str, config, use_signatures=False, remove_incomplete_samples=True):
         self.data = pd.read_csv(file)
 
         if config['dataset']['decider_only']:
             print('Using DECIDER data only')
             self.data = self.data.loc[self.data['is_decider'] == 1.0]
+            self.data.reset_index(drop=True, inplace=True)
+        if config['dataset']['tcga_only']:
+            print('Using TCGA data only')
+            self.data = self.data.loc[self.data['is_decider'] == 0.0]
+            self.data.reset_index(drop=True, inplace=True)
+        if config['dataset']['diagnostic_only']:
+            print('Using only diagnostic slides')
+            self.data = self.data.loc[self.data['source'] == 'diagnostic_slide']
             self.data.reset_index(drop=True, inplace=True)
 
         self.patches_dir = config['dataset']['patches_dir']
@@ -63,20 +71,17 @@ class MultimodalDataset(Dataset):
         self.censorship = self.data['censorship'].values
 
         rnaseq_columns = [col for col in self.data.columns if col.endswith('_rnaseq')]
-        if standardize:
+        if config['dataset']['standardize']:
+            print('Standardizing RNA-seq data')
             for col in rnaseq_columns:
                 self.data[col] = (self.data[col] - self.data[col].mean()) / self.data[col].std()
-        if normalize:
+        if config['dataset']['normalize']:
+            print('Normalizing RNA-seq data')
             for col in rnaseq_columns:
                 self.data[col] = 2 * (self.data[col] - self.data[col].min()) / (self.data[col].max() - self.data[col].min()) - 1
 
         # RNA
         self.rnaseq = self.data.iloc[:, self.data.columns.str.endswith('_rnaseq')].astype(float)
-        if top_rnaseq is not None:
-            rnaseq = self.data[self.data.columns[self.data.columns.str.contains('_rnaseq')]]
-            mad = stats.median_abs_deviation(rnaseq, axis=0)
-            sort_idx = np.argsort(mad)[-top_rnaseq:]
-            self.rnaseq = rnaseq[rnaseq.columns[sort_idx]]
         self.rnaseq_size = len(self.rnaseq.columns)
         self.rnaseq = torch.tensor(self.rnaseq.values, dtype=torch.float32)
 

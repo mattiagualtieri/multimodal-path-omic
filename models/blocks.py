@@ -186,7 +186,7 @@ def multi_head_attention_forward(
     else:
         attn_output_weights = torch.bmm(q_scaled, k.transpose(-2, -1))
     P = torch.matmul(torch.tanh(q), torch.tanh(k.transpose(-2, -1))) + 1
-    P = torch.sigmoid(P) / 2
+    P = torch.sigmoid(P) #  / 2
     attn_output_weights = attn_output_weights * P
     attn_output_weights = softmax(attn_output_weights, dim=-1)
     if dropout_p > 0.0:

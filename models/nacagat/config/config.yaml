@@ -3,12 +3,12 @@ wandb:
   enabled: True
   project: NaCAGaT-TCGA-OV
 dataset:
-  name: TCGA-OV
+  name: DECIDER-TCGA-OV
   file: /work/h2020deciderficarra_shared/mgualtieri/ov/ov_full.csv
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/emt.csv
   decider_only: False
-  tcga_only: True
+  tcga_only: False
   diagnostic_only: False
   normalize: False
   standardize: True
@@ -21,7 +21,7 @@ model:
   model_size: medium
 training:
   leave_one_out: TCGA-57-1993
-  output_attn_epoch: 5
+  output_attn_epoch: 20
   test_output_dir: outputs/
   train_size: 0.8
   loss: ces # ces, sct

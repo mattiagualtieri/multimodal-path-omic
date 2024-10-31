@@ -6,7 +6,7 @@ dataset:
   name: TCGA-OV
   file: /work/h2020deciderficarra_shared/mgualtieri/ov/ov_full.csv
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
-  signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/ccne1.csv
+  signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/emt.csv
   decider_only: False
   tcga_only: True
   diagnostic_only: False

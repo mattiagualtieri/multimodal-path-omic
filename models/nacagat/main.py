@@ -170,7 +170,7 @@ def test(config, device, epoch, val_loader, model, patient, save=False):
     model.eval()
     output_dir = config['training']['test_output_dir']
     model_name = config['model']['name']
-    now = datetime.datetime.now().strftime('%Y%m%d%H%M')
+    now = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     for batch_index, (survival_months, survival_class, censorship, omics_data, patches_embeddings) in enumerate(
             val_loader):
         survival_months = survival_months.to(device)

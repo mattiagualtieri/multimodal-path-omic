@@ -156,11 +156,10 @@ def validate(epoch, config, device, val_loader, model, loss_function, reg_functi
 
 
 def test(config, device, epoch, val_loader, model, patient, save=False):
-    model.inference = True
     model.eval()
     output_dir = config['training']['test_output_dir']
     model_name = config['model']['name']
-    now = datetime.datetime.now().strftime('%Y%m%d%H%M')
+    now = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     for batch_index, (survival_months, survival_class, censorship, omics_data, patches_embeddings) in enumerate(
             val_loader):
         survival_months = survival_months.to(device)
@@ -244,7 +243,6 @@ def main(config_path: str):
     train_size = config['training']['train_size']
     print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')
     test_patient = config['training']['leave_one_out']
-    print(f'Test patient: {test_patient}')
     train_dataset, val_dataset, test_dataset = dataset.split(train_size, test=leave_one_out, patient=test_patient)
     print(f'Samples in train: {len(train_dataset)}, Samples in validation: {len(val_dataset)}')
     if test_dataset is not None:

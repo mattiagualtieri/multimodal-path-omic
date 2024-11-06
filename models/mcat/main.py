@@ -171,7 +171,7 @@ def test(config, device, epoch, val_loader, model, patient, save=False):
         print(f'[{batch_index}] Survival months: {survival_months.item()}, Survival class: {survival_class.item()}, '
               f'Censorship: {censorship.item()}')
         with torch.no_grad():
-            hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
+            hazards, survs, Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data, inference=True)
             risk = -torch.sum(survs, dim=1).cpu().numpy()
             print(f'Hazards: {hazards}, Survs: {survs}, Risk: {risk}, Y: {Y}')
             print(f'Attn min: {attention_scores["coattn"].min()}, Attn max: {attention_scores["coattn"].max()}, Attn '

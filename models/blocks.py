@@ -181,12 +181,9 @@ def multi_head_attention_forward(
 
     assert not (is_causal and attn_mask is None), "FIXME: is_causal not implemented for need_weights"
 
-    if attn_mask is not None: # remove this if, keep else
-        attn_output_weights = torch.baddbmm(attn_mask, q_scaled, k.transpose(-2, -1))
-    else:
-        attn_output_weights = torch.bmm(q_scaled, k.transpose(-2, -1))
+    attn_output_weights = torch.bmm(q_scaled, k.transpose(-2, -1))
     P = torch.matmul(torch.tanh(q), torch.tanh(k.transpose(-2, -1))) + 1
-    P = torch.sigmoid(P)  # TODO: removed '/ 2'. Do we need sigmoid?
+    P = P / 2  # TODO: removed '/ 2'. Do we need sigmoid?
     attn_output_weights = attn_output_weights * P
     attn_output_weights = softmax(attn_output_weights, dim=-1)
     if dropout_p > 0.0:

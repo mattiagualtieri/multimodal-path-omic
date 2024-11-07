@@ -1,15 +1,15 @@
 device: cuda
 wandb:
   enabled: True
-  project: CCNE1
+  project: NaCAGaT-CCNE1
 dataset:
-  name: DECIDER-OV
+  name: TCGA-OV-DX
   file: /work/h2020deciderficarra_shared/mgualtieri/ov/ov_fullest.csv
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/ccne1.csv
-  decider_only: True
-  tcga_only: False
-  diagnostic_only: False
+  decider_only: False
+  tcga_only: True
+  diagnostic_only: True
   normalize: False
   standardize: True
 model:
@@ -20,7 +20,7 @@ model:
   fusion: concat # concat, gated_concat, bilinear
   model_size: medium
 training:
-  leave_one_out: H224
+  leave_one_out: ~
   output_attn_epoch: 20
   test_output_dir: outputs/
   train_size: 0.8

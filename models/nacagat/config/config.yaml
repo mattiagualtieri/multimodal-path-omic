@@ -1,7 +1,7 @@
 device: cuda
 wandb:
   enabled: True
-  project: NaCAGaT-CCNE1
+  project: CCNE1-NaCAGaT
 dataset:
   name: TCGA-OV-DX
   file: /work/h2020deciderficarra_shared/mgualtieri/ov/ov_fullest.csv

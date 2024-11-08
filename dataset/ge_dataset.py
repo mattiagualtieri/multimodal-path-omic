@@ -21,6 +21,18 @@ class MultimodalGeneExprPredDataset(Dataset):
         if self.patches_dir is None:
             self.patches_dir = ''
 
+        slide_index = 0
+        complete_data_only = []
+        for slide in self.data['slide_id']:
+            slide_name = slide.replace('.svs', '.pt')
+            if os.path.exists(os.path.join(self.patches_dir, slide_name)):
+                complete_data_only.append(self.data.iloc[slide_index])
+            slide_index += 1
+
+        self.data = pd.DataFrame(complete_data_only)
+        self.data.reset_index(drop=True, inplace=True)
+        print(f'Remaining samples after removing non existing slides: {len(self.data)}')
+
         print(f'Testing gene expression: {gene}')
         self.gene_expr_value = self.data[f'{gene}_rnaseq']
         self.data = self.data.drop(f'{gene}_rnaseq', axis=1)

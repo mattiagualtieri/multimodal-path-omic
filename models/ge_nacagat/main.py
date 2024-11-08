@@ -21,13 +21,12 @@ def train(epoch, config, device, train_loader, model, loss_function, optimizer, 
     checkpoint_epoch = config['model']['checkpoint_epoch']
     train_loss = 0.0
     start_batch_time = time.time()
-    for batch_index, (gene_expr_class, omics_data, patches_embeddings) in enumerate(
+    for batch_index, (gene_expr_class, patches_embeddings) in enumerate(
             train_loader):
 
         gene_expr_class = gene_expr_class.to(device, non_blocking=True)
         patches_embeddings = patches_embeddings.to(device)
-        omics_data = [omic_data.to(device) for omic_data in omics_data]
-        Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
+        Y, attention_scores = model(wsi=patches_embeddings)
         prediction = torch.argmax(Y)
 
         if config['training']['loss'] == 'ce':
@@ -87,15 +86,14 @@ def validate(epoch, config, device, val_loader, model, loss_function, reg_functi
     model.eval()
     val_loss = 0.0
     lambda_reg = config['training']['lambda']
-    for batch_index, (gene_expr_class, omics_data, patches_embeddings) in enumerate(
+    for batch_index, (gene_expr_class, patches_embeddings) in enumerate(
             val_loader):
 
         gene_expr_class = gene_expr_class.to(device, non_blocking=True)
         gene_expr_class = gene_expr_class.unsqueeze(0).to(torch.int64)
         patches_embeddings = patches_embeddings.to(device)
-        omics_data = [omic_data.to(device) for omic_data in omics_data]
         with torch.no_grad():
-            Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
+            Y, attention_scores = model(wsi=patches_embeddings)
 
         if config['training']['loss'] == 'ce':
             loss = loss_function(Y.unsqueeze(0), gene_expr_class)
@@ -125,24 +123,23 @@ def test(config, device, epoch, val_loader, model, patient, save=False):
     model.eval()
     output_dir = config['training']['test_output_dir']
     now = datetime.datetime.now().strftime('%Y%m%d%H%M')
-    for batch_index, (gene_expr_class, omics_data, patches_embeddings) in enumerate(
+    for batch_index, (gene_expr_class, patches_embeddings) in enumerate(
             val_loader):
 
         gene_expr_class = gene_expr_class.to(device, non_blocking=True)
         gene_expr_class = gene_expr_class.unsqueeze(0).to(torch.int64)
         patches_embeddings = patches_embeddings.to(device)
-        omics_data = [omic_data.to(device) for omic_data in omics_data]
         print(f'[{batch_index}] Gene Expression Class: {gene_expr_class.item()}')
         with torch.no_grad():
-            Y, attention_scores = model(wsi=patches_embeddings, omics=omics_data)
+            Y, attention_scores = model(wsi=patches_embeddings)
             print(f'Prediction: {Y}')
-            print(f'Attn min: {attention_scores["coattn"].min()}, Attn max: {attention_scores["coattn"].max()}, Attn '
-                  f'mean: {attention_scores["coattn"].mean()}')
+            print(f'Attn min: {attention_scores["path"].min()}, Attn max: {attention_scores["path"].max()}, Attn '
+                  f'mean: {attention_scores["path"].mean()}')
 
             if save:
                 output_file = os.path.join(output_dir, f'ATTN_{patient}_{now}_E{epoch}_{batch_index}.pt')
                 print(f'Saving attention in {output_file}')
-                torch.save(attention_scores['coattn'], output_file)
+                torch.save(attention_scores['path'], output_file)
 
 
 def wandb_init(config):
@@ -166,8 +163,6 @@ def wandb_init(config):
             'lambda': config['training']['lambda'],
             'gamma': config['training']['gamma'],
             'model_size': config['model']['model_size'],
-            'normalization': config['dataset']['normalize'],
-            'standardization': config['dataset']['standardize'],
             'leave_one_out': config['training']['leave_one_out']
         }
     )
@@ -196,11 +191,8 @@ def main(config_path: str):
 
     # Dataset
     file_csv = config['dataset']['file']
-    normalize = config['dataset']['normalize']
-    standardize = config['dataset']['standardize']
-    print(f'Normalization: {normalize}, Standardization: {standardize}')
     gene = config['model']['gene']
-    dataset = MultimodalGeneExprPredDataset(file_csv, config, gene=gene, use_signatures=True, normalize=normalize, standardize=standardize)
+    dataset = MultimodalGeneExprPredDataset(file_csv, config, gene=gene)
     leave_one_out = config['training']['leave_one_out'] is not None
     train_size = config['training']['train_size']
     print(f'Using {int(train_size * 100)}% train, {100 - int(train_size * 100)}% validation')
@@ -215,10 +207,8 @@ def main(config_path: str):
     output_attn_epoch = config['training']['output_attn_epoch']
     # Model
     model_size = config['model']['model_size']
-    omics_sizes = dataset.signature_sizes
-    fusion = config['model']['fusion']
     model_name = config['model']['name']
-    model = GeneExprNarrowContextualAttentionGateTransformer(model_size=model_size, omic_sizes=omics_sizes, fusion=fusion, device=device)
+    model = GeneExprNarrowContextualAttentionGateTransformer(model_size=model_size)
     print(f'Trainable parameters of {model_name}: {model.get_trainable_parameters()}')
     checkpoint_path = config['model']['load_from_checkpoint']
     checkpoint = None

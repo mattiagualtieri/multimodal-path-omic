@@ -4,12 +4,10 @@ wandb:
   project: GeneExpr-NaCAGaT-CCNE1
 dataset:
   name: DECIDER-OV
-  file: /work/h2020deciderficarra_shared/mgualtieri/ov/decider_ov.csv
+  file: /work/h2020deciderficarra_shared/mgualtieri/ov/ov_fullest.csv
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/signatures.csv
   decider_only: True
-  normalize: False
-  standardize: True
 model:
   name: GeneExpr-NaCAGaT
   load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt
@@ -19,7 +17,7 @@ model:
   model_size: medium
   gene: CCNE1
 training:
-  leave_one_out: D335
+  leave_one_out: M013
   output_attn_epoch: 5
   test_output_dir: outputs/
   train_size: 0.8

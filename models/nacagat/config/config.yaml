@@ -1,36 +1,76 @@
+# Device used to run experiments [cpu, cuda]
 device: cuda
+
+# W&B configuration
 wandb:
+  # Whether enable or not W&B
   enabled: True
-  project: CCNE1-NaCAGaT
+  # Project name
+  project: CCNE1
+
+# Dataset configuration
 dataset:
-  name: TCGA-OV-DX
+  # Name of the dataset (logged on W&B)
+  name: DECIDER-OV
+  # CSV dataset file
   file: /work/h2020deciderficarra_shared/mgualtieri/ov/ov_fullest.csv
+  # Directory containing slides embeddings
   patches_dir: /work/h2020deciderficarra_shared/mgualtieri/ov/slides/
+  # Signature of genes to use
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/ccne1.csv
-  decider_only: False
-  tcga_only: True
-  diagnostic_only: True
+  # Whether to use only Decider data or not
+  decider_only: True
+  # Whether to use only TCGA data or not
+  tcga_only: False
+  # Whether to use only diagnostic slides or not. Useful only in TCGA-OV
+  diagnostic_only: False
+  # Whether to normalize genomic data or not. Default is False
   normalize: False
+  # Whether to standardize genomic data or not. Default is True
   standardize: True
+
+# Model configuration
 model:
+  # Model name
   name: NaCAGaT
-  load_from_checkpoint: ~ # checkpoints/MCAT_20_202408081300.pt
-  checkpoint_epoch: 20  # 0 if saving is not necessary
+  # Path of model checkpoint to load. Set ~ if loading is not necessary
+  load_from_checkpoint: ~
+  # Epoch of checkpointing. Set 0 if saving the model is not necessary
+  checkpoint_epoch: 20
+  # Directory in which model checkpoint will be saved
   checkpoint_dir: checkpoints/
-  fusion: concat # concat, gated_concat, bilinear
+  # Fusion mechanism [concat, gated_concat, bilinear]
+  fusion: concat
+  # Model size [small, medium, big]
   model_size: medium
+
+# Training configuration
 training:
-  leave_one_out: TCGA-57-1993
+  # ID of the patient to use as test. Set ~ if testing a patient is not needed
+  leave_one_out: H224
+  # At which epoch write the attention file
   output_attn_epoch: 20
+  # Directory in which attention outputs will be saved
   test_output_dir: outputs/
+  # Train size ratio
   train_size: 0.8
-  loss: ces # ces, sct
+  # Loss to use during training [ce, ces, sct]
+  loss: ces
+  # How many epochs of training
   epochs: 20
-  optimizer: adam # sgd, adam, rms, adamax
-  lr: 0.0002 # 0.0002
-  weight_decay: 0.00001 # 0.00001
+  # Which optimizer to use [sgd, adam, rms, adamax]
+  optimizer: adam
+  # Learning rate
+  lr: 0.0002
+  # Weight decay
+  weight_decay: 0.00001
+  # Gradient acceleration step
   grad_acc_step: 32
-  scheduler: ~ # ~, exp
+  # Scheduler for learning rate [~, exp]
+  scheduler: ~
+  # Coefficient used in Cross Entropy Survival loss
   alpha: 0.75
+  # Regulator coefficient. Set 0.0 if regularization is not needed
   lambda: 0.0
+  # Coefficient used in exponential lr scheduling
   gamma: 1.0

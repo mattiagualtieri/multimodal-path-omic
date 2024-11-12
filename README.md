@@ -31,3 +31,5 @@ conda activate torch
 echo "Environment conda activated" >> logs/run.$SLURM_JOB_ID.log
 python main.py >> logs/run.$SLURM_JOB_ID.log
 ```
+
+To change the configuration of the model, edit the `config/config.yaml` file.

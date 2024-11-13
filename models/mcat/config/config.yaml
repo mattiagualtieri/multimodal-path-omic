@@ -11,7 +11,7 @@ wandb:
 # Dataset configuration
 dataset:
   # Name of the dataset (logged on W&B)
-  name: DECIDER-OV
+  name: TCGA-OV
   # CSV dataset file
   file: /work/h2020deciderficarra_shared/mgualtieri/ov/ov_fullest.csv
   # Directory containing slides embeddings
@@ -19,9 +19,9 @@ dataset:
   # Signature of genes to use
   signatures: /work/tesi_mgualtieri/decider/multimodal-path-omic/input/signatures/ccne1.csv
   # Whether to use only Decider data or not
-  decider_only: True
+  decider_only: False
   # Whether to use only TCGA data or not
-  tcga_only: False
+  tcga_only: True
   # Whether to use only diagnostic slides or not. Useful only in TCGA-OV
   diagnostic_only: False
   # Whether to normalize genomic data or not. Default is False
@@ -32,7 +32,7 @@ dataset:
 # Model configuration
 model:
   # Model name
-  name: MCAT
+  name: NaCAGaT
   # Path of model checkpoint to load. Set ~ if loading is not necessary
   load_from_checkpoint: ~
   # Epoch of checkpointing. Set 0 if saving the model is not necessary
@@ -47,7 +47,7 @@ model:
 # Training configuration
 training:
   # ID of the patient to use as test. Set ~ if testing a patient is not needed
-  leave_one_out: H224
+  leave_one_out: ~
   # At which epoch write the attention file
   output_attn_epoch: 20
   # Directory in which attention outputs will be saved

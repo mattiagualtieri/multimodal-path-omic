@@ -33,3 +33,7 @@ python main.py >> logs/run.$SLURM_JOB_ID.log
 ```
 
 To change the configuration of the model, edit the `config/config.yaml` file.
+
+### Attention maps visualization
+
+https://github.com/user-attachments/assets/4ac85676-4e0a-4385-af99-31793ac33f2b
